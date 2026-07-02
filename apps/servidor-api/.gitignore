@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.env
+mcp_debug.log
+stderr.txt
+stdout.txt

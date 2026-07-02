@@ -1,0 +1,33 @@
+{
+  "name": "mcps-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Monorepo centralizado de servidores MCP — Supabase Hub, Communication Bridge e Servidor MCP",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build:packages && npm run build:apps",
+    "build:packages": "npm run build -w @mcps/shared && npm run build -w @mcps/supabase-hub && npm run build -w @mcps/communication",
+    "build:apps": "npm run build -w @mcps/servidor-api && npm run build -w @mcps/servidor-web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "dev:supabase": "npm run dev -w @mcps/supabase-hub",
+    "dev:communication": "npm run dev -w @mcps/communication",
+    "dev:servidor-web": "npm run dev -w @mcps/servidor-web",
+    "dev:servidor-api": "npm run dev -w @mcps/servidor-api",
+    "build:supabase": "npm run build -w @mcps/supabase-hub",
+    "build:communication": "npm run build -w @mcps/communication",
+    "build:servidor-api": "npm run build -w @mcps/servidor-api",
+    "build:servidor-web": "npm run build -w @mcps/servidor-web"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Terminal: Servidor Web (Next.js)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/apps/servidor-web",
+      "presentation": {
+        "group": "mcp",
+        "panel": "dedicated",
+        "reveal": "always"
+      }
+    },
+    {
+      "name": "Terminal: Servidor API (MCP Core)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/apps/servidor-api",
+      "presentation": {
+        "group": "mcp",
+        "panel": "dedicated",
+        "reveal": "always"
+      }
+    },
+    {
+      "name": "Terminal: Supabase Hub MCP",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/packages/supabase-hub",
+      "presentation": {
+        "group": "mcp",
+        "panel": "dedicated",
+        "reveal": "always"
+      }
+    },
+    {
+      "name": "Terminal: Communication MCP",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/packages/communication",
+      "presentation": {
+        "group": "mcp",
+        "panel": "dedicated",
+        "reveal": "always"
+      }
+    },
+    {
+      "name": "Abrir Servidor Web no navegador",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "node -e \"setTimeout(() => require('child_process').exec('start http://localhost:3000'), 3000)\"",
+      "cwd": "${workspaceFolder}",
+      "presentation": {
+        "reveal": "never",
+        "panel": "shared"
+      }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Iniciar Servidor MCP (Web + API)",
+      "configurations": [
+        "Terminal: Servidor Web (Next.js)",
+        "Terminal: Servidor API (MCP Core)",
+        "Abrir Servidor Web no navegador"
+      ]
+    }
+  ]
+}
