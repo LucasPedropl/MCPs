@@ -1,0 +1,45 @@
+{
+  "name": "@mcps/openapi-engine",
+  "version": "0.1.0",
+  "description": "OpenAPI → MCP engine: sync, proxy HTTP, meta-tools runtime e QA",
+  "type": "module",
+  "main": "dist/lib.js",
+  "types": "dist/lib.d.ts",
+  "bin": {
+    "openapi-engine": "dist/index.js"
+  },
+  "exports": {
+    ".": "./dist/lib.js",
+    "./sync": "./dist/sync-only.js",
+    "./qa": "./dist/qa-only.js",
+    "./cli": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx --watch src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "node --max-old-space-size=4096 ../../node_modules/typescript/bin/tsc -p tsconfig.check.json --noEmit",
+    "typecheck:full": "node --max-old-space-size=8192 ../../node_modules/typescript/bin/tsc --noEmit"
+  },
+  "dependencies": {
+    "@mcps/shared": "*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@supabase/supabase-js": "^2.106.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "undici": "^7.22.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.0.0",
+    "tsup": "^8.5.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

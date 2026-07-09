@@ -1,7 +1,0 @@
-node_modules/
-dist/
-trash/
-.bridge-worktrees/
-.env
-*.log
-.DS_Store

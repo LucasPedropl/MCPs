@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@mcps/agent-os": "*",
+    "@mcps/openapi-engine": "*",
     "@hookform/resolvers": "^5.2.2",
     "@supabase/supabase-js": "^2.106.0",
     "clsx": "^2.1.1",

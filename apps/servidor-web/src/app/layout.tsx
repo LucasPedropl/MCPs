@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MCP Swagger Generator",
-  description: "Gerador dinamico de Servidores MCP via OpenAPI/Swagger",
+  title: "Agent OS Dashboard",
+  description: "Painel pessoal do Agent OS — memória, hub MCP, APIs OpenAPI e orquestração",
 };
 
 export default function RootLayout({
@@ -27,7 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="pt-BR"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
       suppressHydrationWarning
     >

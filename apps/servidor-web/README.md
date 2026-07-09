@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Agent OS Dashboard (`@mcps/servidor-web`)
 
-## Getting Started
+Dashboard Next.js para gerenciar memória, skills, hub de MCPs, APIs OpenAPI e orquestração.
 
-First, run the development server:
+## Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Na raiz do monorepo
+npm install
+npm run build
+
+# Copiar env e preencher
+cp apps/servidor-web/.env.example apps/servidor-web/.env.local
+
+# Subir dashboard
+npm run dev:servidor-web
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abra [http://localhost:3000/agent-os](http://localhost:3000/agent-os).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Variáveis de ambiente (`.env.local`)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variável | Obrigatória | Descrição |
+|----------|-------------|-----------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Sim | URL do projeto Supabase |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Sim | Chave anon (client-side) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Sim | Service role (API routes server-side) |
+| `NEXT_PUBLIC_API_URL` | Não | URL do gateway SSE legado (default `localhost:3001`) |
 
-## Learn More
+## Rotas principais
 
-To learn more about Next.js, take a look at the following resources:
+| Rota | Descrição |
+|------|-----------|
+| `/agent-os` | Overview |
+| `/agent-os/memory` | Preferências, decisões, pitfalls |
+| `/agent-os/knowledge` | Hub skills/playbooks |
+| `/agent-os/hub` | Conexões MCP lazy |
+| `/agent-os/jobs` | Orquestração multi-IDE |
+| `/agent-os/mcp-servers` | APIs OpenAPI |
+| `/agent-os/settings` | Configuração e snippets MCP |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## API routes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Namespace `/api/agent-os/*` — CRUD de memória, knowledge, hub, jobs, settings.
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Rotas OpenAPI legadas: `/api/parse-swagger`, `/api/sync-server`, `/api/run-test-case`.

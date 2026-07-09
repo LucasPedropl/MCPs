@@ -30,7 +30,7 @@ export function SettingsTab({ server, onDeleteServer }: SettingsTabProps) {
       const success = await onDeleteServer();
       if (success) {
         addToast(`Servidor "${server.name}" removido com sucesso.`, 'success');
-        router.push('/');
+        router.push('/agent-os/mcp-servers');
       }
     } catch (err: any) {
       addToast(err.message || 'Erro ao remover servidor.', 'error');

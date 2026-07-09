@@ -115,6 +115,50 @@ export async function deleteTestCaseService(testCaseId: string): Promise<void> {
   }
 }
 
+export interface TestRunsStats {
+  total: number;
+  success: number;
+  failed: number;
+  lastRunAt: string | null;
+}
+
+export async function fetchTestRunsStatsByServerService(
+  serverId: string,
+): Promise<TestRunsStats> {
+  const { data: cases, error: casesError } = await supabase
+    .from('mcp_test_cases')
+    .select('id')
+    .eq('server_id', serverId);
+
+  if (casesError) {
+    throw new Error(casesError.message || 'Falha ao buscar casos de teste.');
+  }
+
+  const caseIds = (cases || []).map((c) => c.id);
+  if (caseIds.length === 0) {
+    return { total: 0, success: 0, failed: 0, lastRunAt: null };
+  }
+
+  const { data: runs, error: runsError } = await supabase
+    .from('mcp_test_runs')
+    .select('status, created_at')
+    .in('test_case_id', caseIds)
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (runsError) {
+    throw new Error(runsError.message || 'Falha ao buscar execuções de teste.');
+  }
+
+  const items = runs || [];
+  return {
+    total: items.length,
+    success: items.filter((r) => r.status === 'success').length,
+    failed: items.filter((r) => r.status === 'failed').length,
+    lastRunAt: items[0]?.created_at ?? null,
+  };
+}
+
 export async function runTestCaseService(
   serverId: string,
   testCaseId: string,

@@ -1,0 +1,7 @@
+import { startAgentOsServer } from "./server.js";
+
+startAgentOsServer().catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`[agent-os] fatal: ${message}`);
+  process.exit(1);
+});

@@ -1,5 +1,14 @@
-/**
- * Pacote reservado para código compartilhado entre os MCPs do monorepo.
- * Ex.: tipos MCP comuns, helpers de logging, schemas Zod reutilizáveis.
- */
-export const MCPS_MONOREPO_VERSION = "1.0.0";
+export {
+  AGENT_OS_VERSION,
+  MCPS_MONOREPO_VERSION,
+  type AgentHost,
+  type AssembledContext,
+  type BridgeProvider,
+  type JobStatus,
+  type McpConnectionMeta,
+  type McpTransport,
+  type MemoryScope,
+  type SkillMeta,
+} from "./types.js";
+
+export { errorText, jsonText, markdownText } from "./mcp-response.js";

@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/sync-only.ts",
+    "src/qa-only.ts",
+    "src/config/**/*",
+    "src/repositories/**/*",
+    "src/services/openapi-parser.ts",
+    "src/services/sync-service.ts",
+    "src/services/qa-runner.ts",
+    "src/services/proxy-service.ts"
+  ]
+}

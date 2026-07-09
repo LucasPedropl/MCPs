@@ -621,7 +621,7 @@ export function TestsTab({ serverId, tools, authCredentials }: TestsTabProps) {
                 </label>
                 <textarea 
                   value={stressBody}
-                  onChange={(e) => setTcVariables(e.target.value)} // wait, body
+                  onChange={(e) => setStressBody(e.target.value)}
                   className="w-full h-24 bg-zinc-50 dark:bg-[#050505] border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 text-xs font-mono focus:outline-none focus:border-zinc-400 text-zinc-800 dark:text-zinc-200"
                 />
               </div>

@@ -1,0 +1,37 @@
+{
+  "presets": [
+    {
+      "alias": "github",
+      "transport": "stdio",
+      "config": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-github"],
+        "env": {
+          "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+        }
+      }
+    },
+    {
+      "alias": "vercel",
+      "transport": "stdio",
+      "config": {
+        "command": "npx",
+        "args": ["-y", "@vercel/mcp-server"],
+        "env": {
+          "VERCEL_TOKEN": "${VERCEL_TOKEN}"
+        }
+      }
+    },
+    {
+      "alias": "supabase-official",
+      "transport": "stdio",
+      "config": {
+        "command": "npx",
+        "args": ["-y", "@supabase/mcp-server"],
+        "env": {
+          "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}"
+        }
+      }
+    }
+  ]
+}

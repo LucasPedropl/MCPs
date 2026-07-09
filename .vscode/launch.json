@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Terminal: Servidor Web (Next.js)",
+      "name": "Terminal: Agent OS Dashboard (Next.js)",
       "type": "node-terminal",
       "request": "launch",
       "command": "npm run dev",
@@ -14,11 +14,11 @@
       }
     },
     {
-      "name": "Terminal: Servidor API (MCP Core)",
+      "name": "Terminal: openapi-engine (SSE opcional)",
       "type": "node-terminal",
       "request": "launch",
-      "command": "npm run dev",
-      "cwd": "${workspaceFolder}/apps/servidor-api",
+      "command": "npm run start -- --sse",
+      "cwd": "${workspaceFolder}/packages/openapi-engine",
       "presentation": {
         "group": "mcp",
         "panel": "dedicated",
@@ -26,34 +26,10 @@
       }
     },
     {
-      "name": "Terminal: Supabase Hub MCP",
+      "name": "Abrir Dashboard no navegador",
       "type": "node-terminal",
       "request": "launch",
-      "command": "npm run dev",
-      "cwd": "${workspaceFolder}/packages/supabase-hub",
-      "presentation": {
-        "group": "mcp",
-        "panel": "dedicated",
-        "reveal": "always"
-      }
-    },
-    {
-      "name": "Terminal: Communication MCP",
-      "type": "node-terminal",
-      "request": "launch",
-      "command": "npm run dev",
-      "cwd": "${workspaceFolder}/packages/communication",
-      "presentation": {
-        "group": "mcp",
-        "panel": "dedicated",
-        "reveal": "always"
-      }
-    },
-    {
-      "name": "Abrir Servidor Web no navegador",
-      "type": "node-terminal",
-      "request": "launch",
-      "command": "node -e \"setTimeout(() => require('child_process').exec('start http://localhost:3000'), 3000)\"",
+      "command": "node -e \"setTimeout(() => require('child_process').exec('start http://localhost:3000/agent-os'), 3000)\"",
       "cwd": "${workspaceFolder}",
       "presentation": {
         "reveal": "never",
@@ -63,11 +39,10 @@
   ],
   "compounds": [
     {
-      "name": "Iniciar Servidor MCP (Web + API)",
+      "name": "Agent OS Dashboard",
       "configurations": [
-        "Terminal: Servidor Web (Next.js)",
-        "Terminal: Servidor API (MCP Core)",
-        "Abrir Servidor Web no navegador"
+        "Terminal: Agent OS Dashboard (Next.js)",
+        "Abrir Dashboard no navegador"
       ]
     }
   ]

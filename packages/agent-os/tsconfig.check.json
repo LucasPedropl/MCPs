@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/knowledge-only.ts",
+    "src/config/**/*",
+    "src/hooks/**/*",
+    "src/tools/tool-docs.ts",
+    "src/tools/instructions.ts",
+    "src/features/**/*",
+    "src/modules/knowledge/**/*",
+    "src/modules/memory/**/*",
+    "src/modules/policy/**/*",
+    "src/modules/context/**/*",
+    "src/modules/bootstrap/**/*",
+    "src/modules/projects-registry/project-store.ts",
+    "src/modules/projects-registry/slug.ts",
+    "src/modules/projects-registry/project-docs-assembler.ts",
+    "src/projects-only.ts",
+    "src/modules/runner/**/*",
+    "src/modules/mcp_hub/**/*",
+    "src/modules/openapi-registry/repository.ts",
+    "src/modules/openapi-registry/register-servers.ts"
+  ]
+}

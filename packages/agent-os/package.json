@@ -1,0 +1,46 @@
+{
+  "name": "@mcps/agent-os",
+  "version": "0.1.0",
+  "description": "Personal Agent OS — memória, contexto, orquestração multi-IDE, MCP hub e quality gates",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./knowledge": "./dist/knowledge-only.js",
+    "./projects": "./dist/projects-only.js"
+  },
+  "bin": {
+    "agent-os": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "build:watch": "tsup --watch",
+    "dev": "tsx --watch src/index.ts",
+    "mcp:dev": "tsx watch --clear-screen=false src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "node --max-old-space-size=4096 ../../node_modules/typescript/bin/tsc -p tsconfig.check.json --noEmit",
+    "typecheck:full": "node --max-old-space-size=8192 ../../node_modules/typescript/bin/tsc --noEmit"
+  },
+  "dependencies": {
+    "@mcps/openapi-engine": "*",
+    "@mcps/shared": "*",
+    "@modelcontextprotocol/sdk": "^1.27.0",
+    "@supabase/supabase-js": "^2.108.2",
+    "cron": "^4.3.0",
+    "keytar": "^7.9.0",
+    "picomatch": "^2.3.2",
+    "undici": "^7.22.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/picomatch": "^4.0.3",
+    "tsup": "^8.5.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
