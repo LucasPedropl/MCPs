@@ -81,7 +81,7 @@ export function getCircuitBreakerStats(): Record<
   BridgeProvider,
   { state: CircuitState; failures: number; available: boolean }
 > {
-  const providers: BridgeProvider[] = ["antigravity", "cursor", "copilot"];
+  const providers: BridgeProvider[] = ["antigravity", "cursor"];
   const stats = {} as Record<
     BridgeProvider,
     { state: CircuitState; failures: number; available: boolean }

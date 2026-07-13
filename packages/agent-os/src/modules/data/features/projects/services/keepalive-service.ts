@@ -6,7 +6,11 @@ import {
 } from "../../accounts/services/account-store.js";
 import type { KeepAliveEntry } from "../../accounts/schemas/account.schema.js";
 import { notifyFailedPings } from "../../notifications/webhook-notify.js";
-import { setSchedulerRunning } from "../../accounts/services/hub-status.js";
+import {
+  recordSchedulerTick,
+  setSchedulerRunning,
+  setSchedulerStartedAt,
+} from "../../accounts/services/hub-status.js";
 
 export interface PingResult {
   projectRef: string;
@@ -18,7 +22,30 @@ export interface PingResult {
   error?: string;
 }
 
+export interface KeepAliveSchedulerStatus {
+  schedulerRunning: boolean;
+  schedulerStartedAt: string | null;
+  lastSchedulerTickAt: string | null;
+  lastSuccessfulPingAt: string | null;
+  cron: string | null;
+}
+
 let cronJob: CronJob | null = null;
+let schedulerStartedAt: string | null = null;
+let lastSchedulerTickAt: string | null = null;
+let lastSuccessfulPingAt: string | null = null;
+let currentCron: string | null = null;
+let initialPingDone = false;
+
+export function getKeepAliveSchedulerStatus(): KeepAliveSchedulerStatus {
+  return {
+    schedulerRunning: cronJob !== null,
+    schedulerStartedAt,
+    lastSchedulerTickAt,
+    lastSuccessfulPingAt,
+    cron: currentCron,
+  };
+}
 
 export async function pingProject(entry: KeepAliveEntry): Promise<PingResult> {
   const started = Date.now();
@@ -78,9 +105,16 @@ async function persistPingResults(results: PingResult[]): Promise<void> {
   }
 
   await saveConfig(config);
+
+  if (results.some((result) => result.ok)) {
+    lastSuccessfulPingAt = now;
+  }
 }
 
 export async function pingAllProjects(): Promise<PingResult[]> {
+  lastSchedulerTickAt = new Date().toISOString();
+  recordSchedulerTick(lastSchedulerTickAt);
+
   const config = await loadConfig();
   const enabled = config.keepAlive.filter((k) => k.enabled);
   const results: PingResult[] = [];
@@ -100,29 +134,48 @@ export async function pingAllProjects(): Promise<PingResult[]> {
   return results;
 }
 
+async function runScheduledPing(): Promise<void> {
+  try {
+    await pingAllProjects();
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[keepalive] cron failed: ${message}`);
+  }
+}
+
 export function startKeepAliveScheduler(): void {
   if (cronJob) {
     return;
   }
 
-  void loadConfig().then((config) => {
+  void loadConfig().then(async (config) => {
+    currentCron = config.settings.keepAliveCron;
     cronJob = CronJob.from({
       cronTime: config.settings.keepAliveCron,
       onTick: () => {
-        void pingAllProjects().catch((error: unknown) => {
-          const message =
-            error instanceof Error ? error.message : String(error);
-          console.error(`[keepalive] cron failed: ${message}`);
-        });
+        void runScheduledPing();
       },
       start: true,
+      runOnInit: true,
     });
 
+    schedulerStartedAt = new Date().toISOString();
+    setSchedulerStartedAt(schedulerStartedAt);
     setSchedulerRunning(true);
 
     console.error(
-      `[keepalive] scheduler started (${config.settings.keepAliveCron})`,
+      `[keepalive] scheduler started (${config.settings.keepAliveCron}, runOnInit=true)`,
     );
+
+    if (!initialPingDone) {
+      initialPingDone = true;
+      setTimeout(() => {
+        void runScheduledPing().catch((error: unknown) => {
+          const message = error instanceof Error ? error.message : String(error);
+          console.error(`[keepalive] initial ping failed: ${message}`);
+        });
+      }, 5_000);
+    }
   });
 }
 
@@ -136,5 +189,6 @@ export async function ensureKeepAliveRegistered(): Promise<void> {
 export function stopKeepAliveScheduler(): void {
   cronJob?.stop();
   cronJob = null;
+  currentCron = null;
   setSchedulerRunning(false);
 }

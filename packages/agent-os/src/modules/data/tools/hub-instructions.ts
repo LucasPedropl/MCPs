@@ -49,12 +49,16 @@ Atalho migração: \`import_from_legacy_supabase\` com pat opcional.
 
 ## Keep-alive (projetos free tier)
 
-- Scheduler automático: ping a cada 3 dias em \`/auth/v1/health\`
+- Scheduler no processo MCP: ping a cada **12h** em \`/auth/v1/health\` (cron default \`0 */12 * * *\`)
+- Ping automático na inicialização do scheduler (runOnInit)
+- Para confiabilidade 24/7, use worker dedicado: \`AGENT_OS_KEEPALIVE_WORKER=1\` + \`node dist/keepalive-worker-entry.js\`
 - \`register_all_keepalive\` — registra TODOS os projetos em cache
 - \`register_keepalive\` — um projeto específico (accountId + projectRef)
-- \`ping_all_projects\` — teste manual
-- \`get_keepalive_status\` — último ping, latência, falhas
+- \`ping_all_projects\` / \`keepalive action=ping_all\` — teste manual
+- \`get_keepalive_status\` / \`keepalive action=status\` — último ping, latência, schedulerStartedAt, lastSchedulerTickAt
 - Projeto pausado: \`restore_project\` (accountId + projectRef)
+
+**Nota:** o MCP stdio não fica 24/7 ligado — \`schedulerRunning\` indica apenas que o cron foi criado nesta sessão.
 
 ## Erros comuns
 

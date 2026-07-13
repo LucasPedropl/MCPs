@@ -4,7 +4,6 @@ export const MCPS_MONOREPO_VERSION = "1.0.0";
 export type BridgeProvider =
   | "antigravity"
   | "cursor"
-  | "copilot"
   | "parallel"
   | "pipeline";
 

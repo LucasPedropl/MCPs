@@ -35,7 +35,7 @@ export function registerSessionTools(server: McpServer): void {
     "create_session",
     describeTool("create_session"),
     {
-      provider: z.enum(["antigravity", "cursor", "copilot"]),
+      provider: z.enum(["antigravity", "cursor"]),
       prompt: z.string().min(1),
       title: z.string().optional(),
       model: z.string().optional(),
@@ -132,7 +132,7 @@ export function registerSessionTools(server: McpServer): void {
         .enum(["get", "list", "add_context"])
         .describe("get = sessão + contexto; list = sessões do workspace; add_context = injeta contexto"),
       session_id: z.string().uuid().optional(),
-      provider: z.enum(["antigravity", "cursor", "copilot"]).optional(),
+      provider: z.enum(["antigravity", "cursor"]).optional(),
       limit: z.number().int().min(1).max(50).default(20),
       content: z.string().optional().describe("add_context: conteúdo a injetar"),
       label: z.string().optional(),

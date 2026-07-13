@@ -3,7 +3,6 @@ import { getAntigravityHealth } from "../../providers/antigravity/service.js";
 import {
   getAllProviderStatuses,
   getAntigravityDiscoveryStatus,
-  getCopilotCliStatus,
   getCursorCliStatus,
 } from "../../providers/status.js";
 import { getClient } from "../../tools/delegation.js";
@@ -47,7 +46,7 @@ async function probeAntigravity(workspace: string): Promise<HealthSnapshotRow> {
 function probeCliProvider(
   workspace: string,
   provider: HealthProvider,
-  status: ReturnType<typeof getCopilotCliStatus>,
+  status: ReturnType<typeof getCursorCliStatus>,
 ): Promise<HealthSnapshotRow> {
   return recordHealthSnapshot({
     workspace,
@@ -61,13 +60,12 @@ function probeCliProvider(
 export async function recordAllProviderHealth(
   workspace = getTargetWorkspacePath(),
 ): Promise<HealthSnapshotRow[]> {
-  const [antigravity, cursor, copilot] = await Promise.all([
+  const [antigravity, cursor] = await Promise.all([
     probeAntigravity(workspace),
     probeCliProvider(workspace, "cursor", getCursorCliStatus()),
-    probeCliProvider(workspace, "copilot", getCopilotCliStatus()),
   ]);
 
-  return [antigravity, cursor, copilot];
+  return [antigravity, cursor];
 }
 
 export function getProviderStatusSummary() {

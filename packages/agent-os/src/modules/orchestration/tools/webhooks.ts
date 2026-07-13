@@ -79,7 +79,7 @@ type WebhooksArgs = {
   title?: string;
   body?: string;
   repo: string;
-  provider: "antigravity" | "cursor" | "copilot";
+  provider: "antigravity" | "cursor";
   agentic_mode: boolean;
   workspace_path?: string;
   timeout_ms?: number;
@@ -167,7 +167,7 @@ export function registerWebhookTools(server: McpServer): void {
       title: z.string().optional().describe("Título do PR (pull_request)"),
       body: z.string().optional(),
       repo: z.string().default("owner/repo"),
-      provider: z.enum(["antigravity", "cursor", "copilot"]).default("antigravity"),
+      provider: z.enum(["antigravity", "cursor"]).default("antigravity"),
       agentic_mode: z.boolean().default(false).describe(AGENTIC_MODE_DESC),
       workspace_path: z.string().optional().describe(WORKSPACE_PATH_DESC),
       timeout_ms: z.number().int().positive().optional(),

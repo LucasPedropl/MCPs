@@ -75,11 +75,12 @@ type PlaybookArgs = {
   server_id?: string;
   id?: string;
   current_openapi_summary?: string;
+  include_history?: boolean;
 };
 
 async function handlePlaybook(args: PlaybookArgs) {
   if (args.action === "list") {
-    return jsonText(await listPlaybooks());
+    return jsonText(await listPlaybooks({ includeHistory: args.include_history }));
   }
 
   if (args.action === "get") {
@@ -197,6 +198,7 @@ export function registerKnowledgeTools(server: McpServer): void {
         server_id: z.string().optional(),
         id: z.string().optional(),
         current_openapi_summary: z.string().optional(),
+        include_history: z.boolean().optional(),
       },
     },
     async (args) => handlePlaybook(args as PlaybookArgs),

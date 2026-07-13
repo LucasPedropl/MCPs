@@ -11,7 +11,7 @@ import {
   recordProviderSuccess,
 } from "./circuit-breaker.js";
 
-export const DEFAULT_FALLBACK_CHAIN: BridgeProvider[] = ["antigravity", "cursor", "copilot"];
+export const DEFAULT_FALLBACK_CHAIN: BridgeProvider[] = ["antigravity", "cursor"];
 
 export function isFallbackEnabled(): boolean {
   return process.env["BRIDGE_FALLBACK_ENABLED"] !== "0";

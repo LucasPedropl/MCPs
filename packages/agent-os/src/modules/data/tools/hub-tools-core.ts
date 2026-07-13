@@ -38,6 +38,7 @@ import {
   readLegacySupabaseMcpConfig,
 } from "../features/accounts/services/hub-status.js";
 import { exportMcpConfig } from "../features/config/mcp-config-exporter.js";
+import { buildKeepAliveStatusPayload } from "../hub-sanitize.js";
 import { importFromLegacySupabase } from "../features/accounts/services/legacy-import.js";
 
 export function jsonText(data: unknown): {
@@ -351,10 +352,7 @@ export function registerKeepAliveTools(server: McpServer): void {
     },
     async () => {
       const config = await loadConfig();
-      return jsonText({
-        cron: config.settings.keepAliveCron,
-        entries: config.keepAlive,
-      });
+      return jsonText(buildKeepAliveStatusPayload(config.keepAlive));
     },
   );
 }

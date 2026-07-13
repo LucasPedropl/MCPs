@@ -91,7 +91,7 @@ export interface PollOptions {
 
 export type DelegationMode = "subagent" | "bridge" | "parallel" | "pipeline";
 
-export type BridgeProvider = "antigravity" | "cursor" | "copilot" | "parallel" | "pipeline";
+export type BridgeProvider = "antigravity" | "cursor" | "parallel" | "pipeline";
 
 export const MODEL_LABELS: Record<string, string> = {
   MODEL_PLACEHOLDER_M16: "Gemini 3.1 Pro (High)",

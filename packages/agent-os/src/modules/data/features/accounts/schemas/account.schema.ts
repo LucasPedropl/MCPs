@@ -44,7 +44,7 @@ export const hubConfigSchema = z.object({
   keepAlive: z.array(keepAliveEntrySchema),
   activeContext: activeContextSchema.nullable(),
   settings: z.object({
-    keepAliveCron: z.string().default("0 0 */3 * *"),
+    keepAliveCron: z.string().default("0 */12 * * *"),
     readOnly: z.boolean().default(false),
   }),
 });

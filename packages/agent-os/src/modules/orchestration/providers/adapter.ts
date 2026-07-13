@@ -4,8 +4,6 @@ import { delegateToAntigravity } from "./antigravity/service.js";
 import { listAntigravityModels } from "./antigravity/service.js";
 import { delegateToCursor } from "./cursor/service.js";
 import { probeCursorModels } from "./cursor/model-probe.js";
-import { delegateToCopilot } from "./copilot/service.js";
-import { probeCopilotModels } from "./copilot/model-probe.js";
 import type { DelegateParams, DelegationResult } from "../tools/delegation.js";
 
 export interface ProviderHealth {
@@ -108,42 +106,6 @@ class CursorAdapter implements IProviderAdapter {
   }
 }
 
-class CopilotAdapter implements IProviderAdapter {
-  readonly provider = "copilot" as const;
-
-  async delegate(params: Omit<DelegateParams, "provider">): Promise<DelegationResult> {
-    const result = await delegateToCopilot({
-      prompt: params.prompt,
-      model: params.model,
-      timeoutMs: params.timeout_ms,
-      agenticMode: params.agentic_mode,
-      readTools: params.read_tools,
-      onChunk: params.on_chunk,
-    });
-    return {
-      success: true,
-      provider: "copilot",
-      mode: "subagent",
-      response: result.response,
-      sessionId: result.sessionId,
-      model: result.model,
-      exitCode: result.exitCode,
-    };
-  }
-
-  async listModels(): Promise<ProviderModelInfo[]> {
-    return probeCopilotModels();
-  }
-
-  async getHealth(): Promise<ProviderHealth> {
-    const models = await probeCopilotModels();
-    return {
-      available: models.length > 0,
-      detail: `${models.length} modelos conhecidos`,
-    };
-  }
-}
-
 export function createProviderAdapter(
   provider: BridgeProvider,
   antigravityClient?: AntigravityClient,
@@ -156,9 +118,6 @@ export function createProviderAdapter(
   }
   if (provider === "cursor") {
     return new CursorAdapter();
-  }
-  if (provider === "copilot") {
-    return new CopilotAdapter();
   }
   throw new Error(`Provider ${provider} não suportado pelo adapter`);
 }

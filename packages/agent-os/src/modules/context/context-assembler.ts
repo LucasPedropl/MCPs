@@ -4,6 +4,7 @@ import * as path from "node:path";
 import type { AgentHost, AssembledContext, BridgeProvider } from "@mcps/shared";
 import { getAgentOsConfigDir } from "../../config/env.js";
 import { recallMemory } from "../memory/memory-store.js";
+import { slimMemoryRecall } from "../memory/memory-slim.js";
 import { getProjectProfile } from "../bootstrap/bootstrap-service.js";
 import { resolveSkills } from "../knowledge/knowledge-store.js";
 
@@ -53,13 +54,13 @@ function writeCache(workspace: string, intent: string, payload: AssembledContext
 
 function suggestProvider(intent: string): BridgeProvider | undefined {
   const lower = intent.toLowerCase();
-  if (/(migration|rls|sql|supabase|schema)/.test(lower)) {
+  if (/(migration|migração|rls|sql|supabase|schema|banco)/.test(lower)) {
     return "cursor";
   }
-  if (/(feature|implement|refactor|large)/.test(lower)) {
+  if (/(feature|implement|implementar|refactor|refatora|large|grande|testes)/.test(lower)) {
     return "antigravity";
   }
-  if (/(bug|fix|small|typo)/.test(lower)) {
+  if (/(bug|fix|corrigir|small|typo|rápid)/.test(lower)) {
     return "cursor";
   }
   return undefined;
@@ -93,6 +94,12 @@ export async function assembleContext(input: {
     limit: 8,
   });
 
+  const slimMemory = slimMemoryRecall({
+    preferences: memory.preferences,
+    decisions: memory.decisions,
+    pitfalls: memory.pitfalls,
+  });
+
   const skills = await resolveSkills({
     intent: input.intent,
     workspacePath: workspace,
@@ -101,22 +108,9 @@ export async function assembleContext(input: {
 
   const profile = await getProjectProfile(workspace);
 
-  const preferences = memory.preferences.slice(0, 6).map((pref) => ({
-    key: pref.key,
-    value: pref.value_json,
-    scope: pref.scope,
-  }));
-
-  const decisions = memory.decisions.slice(0, 5).map((decision) => ({
-    topic: decision.topic,
-    chosen_option: decision.chosen_option,
-    rationale: decision.rationale ?? "",
-  }));
-
-  const pitfalls = memory.pitfalls.slice(0, 5).map((pitfall) => ({
-    symptom: pitfall.symptom,
-    fix: pitfall.fix,
-  }));
+  const preferences = slimMemory.preferences;
+  const decisions = slimMemory.decisions;
+  const pitfalls = slimMemory.pitfalls;
 
   const skillChunks = skills.map((skill) => ({
     name: skill.name,

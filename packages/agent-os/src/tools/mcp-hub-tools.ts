@@ -23,6 +23,45 @@ import {
 } from "../modules/openapi-registry/register-servers.js";
 import { runOpenApiSync } from "../modules/openapi-registry/sync-service.js";
 import { describeAgentTool } from "./tool-docs.js";
+import { redactMcpConfig } from "../lib/mask-secret.js";
+
+export interface McpConnectionSummary {
+  id: string;
+  alias: string;
+  transport: string;
+  status: string;
+  toolCount: number;
+  toolNames: string[];
+  last_health_at: string | null;
+  config_json?: Record<string, unknown>;
+  tool_cache_json?: Array<{ name: string; description?: string }>;
+}
+
+function summarizeConnections(
+  connections: Awaited<ReturnType<typeof listConnections>>,
+  options: { includeConfig?: boolean; includeToolCache?: boolean },
+): McpConnectionSummary[] {
+  return connections.map((connection) => {
+    const summary: McpConnectionSummary = {
+      id: connection.id,
+      alias: connection.alias,
+      transport: connection.transport,
+      status: connection.status,
+      toolCount: connection.tool_cache_json.length,
+      toolNames: connection.tool_cache_json.map((tool) => tool.name),
+      last_health_at: connection.last_health_at,
+    };
+
+    if (options.includeConfig) {
+      summary.config_json = redactMcpConfig(connection.config_json);
+    }
+    if (options.includeToolCache) {
+      summary.tool_cache_json = connection.tool_cache_json;
+    }
+
+    return summary;
+  });
+}
 
 type InstallMcpArgs = {
   mode: "presets" | "registry_all" | "openapi_new" | "openapi_sync";
@@ -114,9 +153,18 @@ export function registerMcpHubTools(server: McpServer): void {
     "list_connected_mcps",
     {
       description: describeAgentTool("list_connected_mcps"),
-      inputSchema: {},
+      inputSchema: {
+        include_config: z.boolean().optional(),
+        include_tool_cache: z.boolean().optional(),
+      },
     },
-    async () => jsonText(await listConnections()),
+    async (args) =>
+      jsonText(
+        summarizeConnections(await listConnections(), {
+          includeConfig: args.include_config ?? false,
+          includeToolCache: args.include_tool_cache ?? false,
+        }),
+      ),
   );
 
   server.registerTool(

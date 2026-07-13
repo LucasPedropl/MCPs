@@ -46,7 +46,7 @@ NOTES: A regra aparece no assemble_context do workspace. Com enforce=true + acti
 Recupera memória relevante (preferências + decisões + pitfalls) rankeada pela intenção.
 WHEN TO USE: Antes de tarefas em workspace conhecido, para lembrar regras e erros passados.
 WHEN NOT: Para pacote completo com skills e budget (use assemble_context).
-RETURNS: { preferences[], decisions[], pitfalls[] } ordenados por relevância à intent.
+RETURNS: { preferences[], decisions[], pitfalls[] } formato slim por padrão (sem ids/timestamps). Use raw=true para rows completas.
 `.trim(),
 
 	memory_admin: `
@@ -117,7 +117,7 @@ CRUD unificado de playbooks versionados por alias.
 WHEN TO USE: action=get para consultar o mais recente; action=list; action=update para nova versão; action=delete; action=detect_drift para comparar playbook vs resumo OpenAPI atual.
 WHEN NOT: Para skills (use skill_admin).
 RETURNS: Conteúdo do playbook, lista, { ok } ou relatório de drift.
-PARAMS: action(get|list|update|delete|detect_drift), alias?, content_md?, id?, current_openapi_summary?
+PARAMS: action(get|list|update|delete|detect_drift), alias?, content_md?, id?, include_history? (list)
 `.trim(),
 
 	// ── mcp_hub ─────────────────────────────────────────────────────────────
@@ -125,7 +125,8 @@ PARAMS: action(get|list|update|delete|detect_drift), alias?, content_md?, id?, c
 Lista MCPs registrados no hub lazy (GitHub, Vercel, OpenAPI custom, etc).
 WHEN TO USE: Descobrir aliases disponíveis antes de call_mcp_tool.
 WHEN NOT: Para tools de um MCP específico (use list_mcp_tools).
-RETURNS: Conexões com alias, transport, status e tool cache.
+RETURNS: Resumo por alias (latest_version_at, version_count). Use include_config/include_tool_cache para modo verbose.
+PARAMS: include_config?, include_tool_cache?
 `.trim(),
 
 	connect_mcp: `
@@ -249,7 +250,7 @@ RETURNS: { tools[] }
 	keepalive: `
 Keep-alive de projetos Supabase free tier (evita pausa por 7 dias de inatividade).
 WHEN TO USE: action=register_all após sync de projetos; action=status para conferir; action=ping_all para ping manual; action=register para um projeto específico.
-RETURNS: Entradas de keep-alive ou resultado dos pings.
+RETURNS: Entradas mascaradas (anonKey redacted) + schedulerStartedAt, lastSchedulerTickAt, lastSuccessfulPingAt.
 PARAMS: action(register|register_all|ping_all|status), accountId?, projectRef?
 `.trim(),
 
@@ -271,7 +272,7 @@ RETURNS: Snippet JSON + instruções.
 Hints de schema Supabase relevantes para a tarefa (tabelas + colunas rankeadas pela intent).
 WHEN TO USE: Antes de escrever SQL em projeto com muitas tabelas.
 WHEN NOT: Para schema completo (use call_supabase_tool list_tables).
-RETURNS: { active_project, source, schema_hints[] }
+RETURNS: { active_project, source, schema_hints[], error? }. Requer switch_project ativo; source=list_tables quando parse OK.
 `.trim(),
 
 	// ── policy ──────────────────────────────────────────────────────────────
@@ -332,7 +333,9 @@ PARAMS: target(github|vercel|docs|cover), id?/slug?, save?, file_path?, base64?,
 
 	// ── orchestration extensions ────────────────────────────────────────────
 	route_for_pedro: `
-Sugere provider ideal (cursor/antigravity/copilot) para a intenção, usando as regras pessoais do Pedro.
+Sugere provider ideal (cursor/antigravity) para a intenção, usando as regras pessoais do Pedro.
+WHEN TO USE: Antes de delegate_task quando não souber qual provider usar.
+RETURNS: { provider, rationale, matched_rule, confidence }
 WHEN TO USE: Escolher para quem delegar antes de delegate_task/delegate_async.
 RETURNS: { provider, rationale }
 `.trim(),

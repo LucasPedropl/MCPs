@@ -11,36 +11,58 @@ import {
 } from "../modules/orchestration/features/sessions/session-store.js";
 import { describeAgentTool } from "./tool-docs.js";
 
+type RouteRule =
+  | "database"
+  | "large_feature"
+  | "small_fix"
+  | "default";
+
 function routeForPedro(intent: string): {
   provider: BridgeProvider;
   rationale: string;
+  matched_rule: RouteRule;
+  confidence: "high" | "medium" | "low";
 } {
   const lower = intent.toLowerCase();
 
-  if (/(migration|rls|sql|supabase|schema|policy)/.test(lower)) {
+  if (
+    /(migration|migração|rls|sql|supabase|schema|policy|política|banco)/.test(lower)
+  ) {
     return {
       provider: "cursor",
       rationale: "Tarefa de banco/RLS: Cursor com data module.",
+      matched_rule: "database",
+      confidence: "high",
     };
   }
 
-  if (/(feature|implement|refactor|architecture|large)/.test(lower)) {
+  if (
+    /(feature|implement|implementar|refactor|refatora|arquitetura|architecture|large|grande|testes|tests)/.test(
+      lower,
+    )
+  ) {
     return {
       provider: "antigravity",
-      rationale: "Tarefa grande: Antigravity.",
+      rationale: "Tarefa grande ou com testes: Antigravity.",
+      matched_rule: "large_feature",
+      confidence: "high",
     };
   }
 
-  if (/(bug|fix|typo|small|quick)/.test(lower)) {
+  if (/(bug|fix|corrigir|typo|small|quick|rápid)/.test(lower)) {
     return {
       provider: "cursor",
       rationale: "Correção pequena: Cursor.",
+      matched_rule: "small_fix",
+      confidence: "medium",
     };
   }
 
   return {
     provider: "cursor",
     rationale: "Default pessoal: Cursor.",
+    matched_rule: "default",
+    confidence: "low",
   };
 }
 
@@ -60,7 +82,7 @@ export function registerAgentOsOrchestrationExtensions(server: McpServer): void 
       description: describeAgentTool("handoff_session"),
       inputSchema: {
         session_id: z.string(),
-        target_provider: z.enum(["cursor", "antigravity", "copilot"]),
+        target_provider: z.enum(["cursor", "antigravity"]),
         prompt: z.string(),
         context_label: z.string().optional(),
         context_content: z.string().optional(),
@@ -109,7 +131,7 @@ export function registerAgentOsOrchestrationExtensions(server: McpServer): void 
       inputSchema: {
         task_id: z.string(),
         prompt: z.string(),
-        provider: z.enum(["cursor", "antigravity", "copilot"]).optional(),
+        provider: z.enum(["cursor", "antigravity"]).optional(),
         workspace_path: z.string().optional(),
       },
     },

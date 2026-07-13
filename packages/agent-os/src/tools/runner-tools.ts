@@ -46,7 +46,7 @@ export function registerRunnerTools(server: McpServer): void {
         workspace_path: z.string(),
         prompt_prefix: z.string().optional(),
         max_iterations: z.number().optional(),
-        provider: z.enum(["cursor", "antigravity", "copilot"]).optional(),
+        provider: z.enum(["cursor", "antigravity"]).optional(),
       },
     },
     async (args) => {

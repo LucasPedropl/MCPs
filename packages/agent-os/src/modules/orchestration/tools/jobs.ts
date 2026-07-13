@@ -45,7 +45,7 @@ export function registerJobTools(server: McpServer): void {
     "delegate_async",
     describeTool("delegate_async"),
     {
-      provider: z.enum(["antigravity", "cursor", "copilot"]),
+      provider: z.enum(["antigravity", "cursor"]),
       prompt: z.string().min(1),
       model: z.string().optional(),
       mode: z.enum(["subagent", "bridge"]).default("subagent").describe(MODE_DESC),
@@ -161,7 +161,7 @@ export function registerJobTools(server: McpServer): void {
       status: z
         .enum(["pending", "running", "completed", "failed", "cancelled", "awaiting_approval"])
         .optional(),
-      provider: z.enum(["antigravity", "cursor", "copilot"]).optional(),
+      provider: z.enum(["antigravity", "cursor"]).optional(),
       limit: z.number().int().min(1).max(100).default(20),
       all_workspaces: z.boolean().default(false),
       workspace_path: z.string().optional().describe(WORKSPACE_PATH_DESC),

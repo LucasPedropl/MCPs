@@ -24,7 +24,7 @@ type ObservabilityArgs = {
   job_id?: string;
   since_seq: number;
   limit: number;
-  provider?: "antigravity" | "cursor" | "copilot";
+  provider?: "antigravity" | "cursor";
   all_workspaces: boolean;
   workspace_path?: string;
 };
@@ -77,7 +77,7 @@ export function registerObservabilityTools(server: McpServer): void {
       job_id: z.string().uuid().optional(),
       since_seq: z.number().int().min(0).default(0),
       limit: z.number().int().min(1).max(500).default(100),
-      provider: z.enum(["antigravity", "cursor", "copilot"]).optional(),
+      provider: z.enum(["antigravity", "cursor"]).optional(),
       all_workspaces: z.boolean().default(false),
       workspace_path: z.string().optional().describe(WORKSPACE_PATH_DESC),
     },

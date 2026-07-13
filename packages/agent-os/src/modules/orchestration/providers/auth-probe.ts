@@ -1,5 +1,4 @@
 import { spawn } from "node:child_process";
-import { findCopilotCli, isWindowsScript } from "../client/copilot-cli.js";
 import { findCursorAgentCli, isWindowsScript as isCursorWindowsScript } from "../client/cursor-cli.js";
 
 export interface AuthProbeResult {
@@ -68,48 +67,4 @@ export async function probeCursorAuth(): Promise<AuthProbeResult> {
   }
 
   return { authenticated: true, detail: "Autenticado" };
-}
-
-/** Verifica se Copilot CLI está autenticado. */
-export async function probeCopilotAuth(): Promise<AuthProbeResult> {
-  const cli = findCopilotCli();
-  if (!cli) {
-    return { authenticated: false, detail: "CLI não encontrado" };
-  }
-
-  const hasToken =
-    Boolean(process.env["COPILOT_GITHUB_TOKEN"]) ||
-    Boolean(process.env["GH_TOKEN"]) ||
-    Boolean(process.env["GITHUB_TOKEN"]);
-
-  const { stdout, stderr, exitCode } = await probeCli(
-    cli.command,
-    ["-p", "ping", "-s", "--no-ask-user", "--model", "auto"],
-    isWindowsScript(cli.command),
-    20_000,
-  );
-
-  const combined = `${stdout}\n${stderr}`.toLowerCase();
-  if (
-    combined.includes("not logged in") ||
-    combined.includes("authentication required") ||
-    combined.includes("please run 'copilot login'")
-  ) {
-    return {
-      authenticated: false,
-      detail: hasToken
-        ? "Token env presente mas auth falhou — verifique escopo"
-        : "Não autenticado — execute `copilot login`",
-    };
-  }
-
-  if (exitCode !== 0 && !stdout.trim()) {
-    return { authenticated: false, detail: stderr.trim() || `exit ${exitCode}` };
-  }
-
-  const profile = process.env["BRIDGE_COPILOT_PROFILE"]?.trim().toLowerCase() ?? "light";
-  return {
-    authenticated: true,
-    detail: `Autenticado (perfil: ${profile === "full" || profile === "pro" ? "full" : "light"})`,
-  };
 }

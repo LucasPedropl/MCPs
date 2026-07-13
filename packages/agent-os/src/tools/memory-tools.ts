@@ -16,6 +16,7 @@ import {
   updateDecision,
   upsertPreference,
 } from "../modules/memory/memory-store.js";
+import { slimMemoryRecall } from "../modules/memory/memory-slim.js";
 import { importRulesFromWorkspace, seedPedroPreferences } from "../modules/memory/memory-seed.js";
 import { isSupabaseConfigured } from "../features/supabase-client.js";
 import { describeAgentTool } from "./tool-docs.js";
@@ -233,16 +234,22 @@ export function registerMemoryTools(server: McpServer): void {
         intent: z.string(),
         workspace_path: z.string().optional(),
         limit: z.number().optional(),
+        raw: z.boolean().optional().describe("Se true, retorna rows completas do banco"),
       },
     },
-    async (args) =>
-      jsonText(
-        await recallMemory({
-          intent: args.intent,
-          workspacePath: args.workspace_path,
-          limit: args.limit,
-        }),
-      ),
+    async (args) => {
+      const memory = await recallMemory({
+        intent: args.intent,
+        workspacePath: args.workspace_path,
+        limit: args.limit,
+      });
+
+      if (args.raw) {
+        return jsonText(memory);
+      }
+
+      return jsonText(slimMemoryRecall(memory));
+    },
   );
 
   server.registerTool(

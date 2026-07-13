@@ -14,6 +14,7 @@ import { getHubStatus } from "../features/accounts/services/hub-status.js";
 import { exportMcpConfig } from "../features/config/mcp-config-exporter.js";
 import { describeAgentTool } from "../../../tools/tool-docs.js";
 import { errorText, jsonText } from "./hub-tools-core.js";
+import { sanitizeProject } from "../hub-sanitize.js";
 import { registerHubAdminTools } from "./hub-admin-tools.js";
 
 /**
@@ -98,7 +99,7 @@ export function registerUnifiedHubTools(server: McpServer): void {
           p.accountId === config.activeContext?.accountId &&
           p.ref === config.activeContext?.projectRef,
       );
-      return jsonText({ active: true, account, project, activeContext: config.activeContext });
+      return jsonText({ active: true, account, project: sanitizeProject(project), activeContext: config.activeContext });
     },
   );
 

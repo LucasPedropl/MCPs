@@ -31,12 +31,18 @@ conteúdo é servido via tool `get_usage_guide`.
   RLS e degradam com warning.
 - **`AGENT_OS_MODULES`**: csv de módulos para servidores enxutos, ex.
   `memory,context,data,policy`. Ausente ou `all` habilita tudo.
+- **`AGENT_OS_KEEPALIVE_WORKER=1`**: processo 24/7 para keep-alive confiável
+  (`npm run keepalive:worker -w @mcps/agent-os` após build).
+
+## Providers de delegação
+
+Apenas **Cursor** e **Antigravity** — GitHub Copilot foi removido do bridge.
 
 ## Fluxo diário
 
-1. `bootstrap_project` — detecta stack e bundle
+1. `bootstrap_project` — detecta stack agregada em monorepos e monta bundle
 2. `assemble_context` — contexto mínimo sob budget (regras de projeto chegam aqui)
-3. `route_for_pedro` / `delegate_task` / `delegate_async` — execução
+3. `route_for_pedro` / `delegate_task` / `delegate_async` — execução (Cursor ou Antigravity)
 4. `list_connected_mcps` → `call_mcp_tool` — GitHub, Vercel, etc.
 5. `run_quality_gates` + `summarize_diff` — entrega
 

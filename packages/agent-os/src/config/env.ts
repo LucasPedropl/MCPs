@@ -59,6 +59,10 @@ export function isRealtimeWorkerEnabled(): boolean {
   );
 }
 
+export function isKeepAliveWorkerEnabled(): boolean {
+  return envFirst("AGENT_OS_KEEPALIVE_WORKER") === "1";
+}
+
 export const AGENT_OS_MODULES = [
   "memory",
   "bootstrap",

@@ -13,7 +13,6 @@ export interface JobMetrics {
 const COST_PER_1K_TOKENS: Record<BridgeProvider, number> = {
   antigravity: 0.002,
   cursor: 0.003,
-  copilot: 0.001,
   parallel: 0.002,
   pipeline: 0.002,
 };

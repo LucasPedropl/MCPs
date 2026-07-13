@@ -25,7 +25,7 @@ const ROUTE_MAP: Record<PromptCategory, ParallelTargetProvider[]> = {
   review: ["antigravity", "cursor"],
   implement: ["antigravity", "cursor"],
   explain: ["antigravity", "cursor"],
-  general: ["antigravity", "cursor", "copilot"],
+  general: ["antigravity", "cursor"],
 };
 
 /** Seleciona providers com base no tipo de prompt. */

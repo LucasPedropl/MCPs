@@ -49,7 +49,7 @@ export type GitHubEventType = "push" | "pull_request" | "ping";
 
 /** Opções de processamento do webhook. */
 export interface WebhookHandlerOptions {
-  provider?: "antigravity" | "cursor" | "copilot";
+  provider?: "antigravity" | "cursor";
   agentic?: boolean;
   timeoutMs?: number;
   workspacePath?: string;

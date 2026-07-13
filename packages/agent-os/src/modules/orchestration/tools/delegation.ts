@@ -19,8 +19,6 @@ import { delegateToAntigravity } from "../providers/antigravity/service.js";
 import { isAntigravityParallelEnabled } from "../providers/antigravity/config.js";
 import { isHeadlessAntigravityEnabled, isHeadlessAvailable } from "../providers/antigravity/headless.js";
 import { withWorkspaceLock } from "../features/workspace/lock-store.js";
-import { delegateToCopilot } from "../providers/copilot/service.js";
-import { getCopilotDefaultTimeoutMs, isCopilotLightMode } from "../providers/copilot/config.js";
 import { delegateToCursor } from "../providers/cursor/service.js";
 import { createGrowingTextEmitter } from "../features/observability/chunk-emitter.js";
 
@@ -106,7 +104,7 @@ function shouldUseWorktree(provider: BridgeProvider, agentic: boolean): boolean 
     }
     return isHeadlessAntigravityEnabled() && isHeadlessAvailable();
   }
-  return provider === "copilot" || provider === "cursor";
+  return provider === "cursor";
 }
 
 function needsAgenticLock(provider: BridgeProvider, agentic: boolean, isolated: boolean): boolean {
@@ -119,7 +117,7 @@ function needsAgenticLock(provider: BridgeProvider, agentic: boolean, isolated: 
   return true;
 }
 
-/** Executa delegação síncrona para Antigravity, Cursor ou Copilot. */
+/** Executa delegação síncrona para Antigravity ou Cursor. */
 export async function runDelegation(params: DelegateParams): Promise<DelegationResult> {
   const { provider, prompt, model, mode, agentic_mode, read_tools, timeout_ms, on_chunk, holder_id, session_id } =
     params;
@@ -140,35 +138,6 @@ export async function runDelegation(params: DelegateParams): Promise<DelegationR
 
   const run = async (): Promise<DelegationResult> => {
   try {
-    if (provider === "copilot") {
-      const copilotTimeout = isCopilotLightMode()
-        ? Math.min(timeout_ms, getCopilotDefaultTimeoutMs())
-        : timeout_ms;
-      const result = await delegateToCopilot({
-        prompt: delegatedPrompt,
-        model,
-        timeoutMs: copilotTimeout,
-        agenticMode: agentic_mode,
-        readTools: read_tools,
-        workspacePath: delegated.path,
-        sessionId: session_id,
-        onChunk: on_chunk,
-      });
-      const merge = finalizeIsolatedWorkspace(delegated, true);
-      return {
-        success: true,
-        provider,
-        mode: "subagent",
-        response: result.response,
-        sessionId: result.sessionId,
-        model: result.model,
-        exitCode: result.exitCode,
-        isolatedBranch: delegated.isolated ? delegated.branch : undefined,
-        worktreePath: delegated.worktreePath,
-        merge,
-      };
-    }
-
     if (mode === "parallel") {
       releaseDelegationWorkspace(delegated);
       return {

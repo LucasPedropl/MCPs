@@ -5,6 +5,7 @@ export default defineConfig({
     "src/index.ts",
     "src/knowledge-only.ts",
     "src/projects-only.ts",
+    "src/keepalive-worker-entry.ts",
     "src/hooks/hook-cli.ts",
   ],
   format: ["esm"],

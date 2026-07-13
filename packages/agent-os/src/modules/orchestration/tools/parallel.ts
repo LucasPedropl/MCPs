@@ -14,7 +14,7 @@ import { describeTool, WORKSPACE_PATH_DESC } from "./tool-docs.js";
 import { guardDelegation } from "./policy-guard.js";
 
 const providerSpecSchema = z.object({
-  provider: z.enum(["antigravity", "cursor", "copilot"]),
+  provider: z.enum(["antigravity", "cursor"]),
   model: z.string().optional(),
   agentic_mode: z.boolean().optional(),
   mode: z.enum(["subagent", "bridge"]).optional(),
@@ -162,12 +162,12 @@ export function registerParallelTools(server: McpServer): void {
         suggestedProviders: routeInfo.providers.map((p) => p.provider),
         hint:
           routeInfo.category === "review"
-            ? "Review: Copilot + Antigravity"
+            ? "Review: Antigravity + Cursor"
             : routeInfo.category === "implement"
               ? "Implementação: Antigravity + Cursor"
               : routeInfo.category === "explain"
-                ? "Explicação: Copilot + Antigravity"
-                : "Geral: todos os providers",
+                ? "Explicação: Antigravity + Cursor"
+                : "Geral: Antigravity + Cursor",
       });
     },
   );

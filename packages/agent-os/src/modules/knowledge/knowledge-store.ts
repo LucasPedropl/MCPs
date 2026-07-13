@@ -222,8 +222,18 @@ export async function bindSkillToProject(input: {
   if (error) throw new Error(`Falha ao vincular skill: ${error.message}`);
 }
 
-export async function listPlaybooks(): Promise<
-  Array<{ id: string; alias: string; server_id: string | null; created_at: string }>
+export async function listPlaybooks(options?: {
+  includeHistory?: boolean;
+}): Promise<
+  Array<
+    | { id: string; alias: string; server_id: string | null; created_at: string }
+    | {
+        alias: string;
+        server_id: string | null;
+        latest_version_at: string;
+        version_count: number;
+      }
+  >
 > {
   const client = getSupabaseClient();
   const { data, error } = await client
@@ -231,7 +241,35 @@ export async function listPlaybooks(): Promise<
     .select("id, alias, server_id, created_at")
     .order("created_at", { ascending: false });
   if (error) throw new Error(`Falha ao listar playbooks: ${error.message}`);
-  return data ?? [];
+
+  const rows = data ?? [];
+  if (options?.includeHistory) {
+    return rows;
+  }
+
+  const grouped = new Map<
+    string,
+    { alias: string; server_id: string | null; latest_version_at: string; version_count: number }
+  >();
+
+  for (const row of rows) {
+    const current = grouped.get(row.alias);
+    if (!current) {
+      grouped.set(row.alias, {
+        alias: row.alias,
+        server_id: row.server_id,
+        latest_version_at: row.created_at,
+        version_count: 1,
+      });
+      continue;
+    }
+
+    current.version_count += 1;
+  }
+
+  return [...grouped.values()].sort((left, right) =>
+    right.latest_version_at.localeCompare(left.latest_version_at),
+  );
 }
 
 export async function deletePlaybook(id: string): Promise<void> {

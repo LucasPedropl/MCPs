@@ -24,6 +24,7 @@ import {
 import { importFromLegacySupabase } from "../features/accounts/services/legacy-import.js";
 import { describeAgentTool } from "../../../tools/tool-docs.js";
 import { errorText, jsonText } from "./hub-tools-core.js";
+import { buildKeepAliveStatusPayload, sanitizeKeepAliveEntry } from "../hub-sanitize.js";
 
 type HubAdminArgs = {
   action:
@@ -144,11 +145,15 @@ async function handleKeepalive(args: KeepaliveArgs) {
         return errorText("action=register exige 'accountId' e 'projectRef'.");
       }
       const entry = await registerKeepAlive(args.accountId, args.projectRef);
-      return jsonText({ success: true, entry });
+      return jsonText({ success: true, entry: sanitizeKeepAliveEntry(entry) });
     }
     case "register_all": {
       const entries = await registerAllKeepAlive();
-      return jsonText({ success: true, count: entries.length, entries });
+      return jsonText({
+        success: true,
+        count: entries.length,
+        entries: entries.map(sanitizeKeepAliveEntry),
+      });
     }
     case "ping_all": {
       const results = await pingAllProjects();
@@ -156,7 +161,7 @@ async function handleKeepalive(args: KeepaliveArgs) {
     }
     case "status": {
       const config = await loadConfig();
-      return jsonText({ cron: config.settings.keepAliveCron, entries: config.keepAlive });
+      return jsonText(buildKeepAliveStatusPayload(config.keepAlive));
     }
   }
 }

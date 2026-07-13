@@ -6,12 +6,7 @@ import { loadConfig } from "./features/accounts/services/account-store.js";
 import { callSupabaseTool } from "./features/proxy/supabase-mcp-proxy.js";
 import { registerUnifiedHubTools } from "./tools/hub-tools-unified.js";
 import { describeAgentTool } from "../../tools/tool-docs.js";
-
-interface SchemaHint {
-  table: string;
-  columns: string[];
-  note?: string;
-}
+import { parseListTablesResult, rankTablesByIntent, type SchemaHint } from "./schema-parser.js";
 
 const FALLBACK_TABLES = [
   "agent_preferences",
@@ -22,89 +17,44 @@ const FALLBACK_TABLES = [
   "mcp_tools",
 ];
 
-function parseListTablesResult(result: unknown): SchemaHint[] {
-  if (!result || typeof result !== "object") {
-    return [];
-  }
-
-  const record = result as { content?: Array<{ type?: string; text?: string }> };
-  const textBlock = record.content?.find((block) => block.type === "text")?.text;
-  if (!textBlock) {
-    return [];
-  }
-
-  try {
-    const parsed: unknown = JSON.parse(textBlock);
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
-    return parsed
-      .map((item): SchemaHint | null => {
-        if (typeof item !== "object" || item === null || !("name" in item)) {
-          return null;
-        }
-        const table = item as { name: string; columns?: Array<{ name: string }> };
-        return {
-          table: table.name,
-          columns: (table.columns ?? []).map((column) => column.name),
-        };
-      })
-      .filter((item): item is SchemaHint => item !== null);
-  } catch {
-    return [];
-  }
-}
-
-function rankTablesByIntent(tables: SchemaHint[], intent: string, limit: number): SchemaHint[] {
-  const keywords = intent
-    .toLowerCase()
-    .split(/\W+/)
-    .filter((token) => token.length > 3);
-
-  const ranked = [...tables].sort((left, right) => {
-    const leftText = `${left.table} ${left.columns.join(" ")}`.toLowerCase();
-    const rightText = `${right.table} ${right.columns.join(" ")}`.toLowerCase();
-    const leftScore = keywords.filter((keyword) => leftText.includes(keyword)).length;
-    const rightScore = keywords.filter((keyword) => rightText.includes(keyword)).length;
-    return rightScore - leftScore;
-  });
-
-  if (keywords.length === 0) {
-    return ranked.slice(0, limit);
-  }
-
-  const matched = ranked.filter((table) => {
-    const haystack = `${table.table} ${table.columns.join(" ")}`.toLowerCase();
-    return keywords.some((keyword) => haystack.includes(keyword));
-  });
-
-  return (matched.length > 0 ? matched : ranked).slice(0, limit);
-}
-
 async function resolveSchemaHints(intent: string, tableLimit: number): Promise<{
   activeProject: ActiveContext | null;
   schemaHints: SchemaHint[];
   source: "list_tables" | "fallback";
+  error?: string;
 }> {
   const config = await loadConfig();
   const limit = tableLimit;
 
-  if (config.activeContext) {
-    try {
-      const remote = await callSupabaseTool("list_tables", { schemas: ["public"] });
-      const tables = parseListTablesResult(remote);
-      if (tables.length > 0) {
-        return {
-          activeProject: config.activeContext,
-          schemaHints: rankTablesByIntent(tables, intent, limit),
-          source: "list_tables",
-        };
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`[schema_context_for_task] list_tables falhou: ${message}`);
+  if (!config.activeContext) {
+    return {
+      activeProject: null,
+      schemaHints: [],
+      source: "fallback",
+      error: "Nenhum projeto ativo. Use switch_project antes de schema_context_for_task.",
+    };
+  }
+
+  try {
+    const remote = await callSupabaseTool("list_tables", {
+      schemas: ["public"],
+      verbose: true,
+    });
+    const tables = parseListTablesResult(remote);
+    if (tables.length > 0) {
+      return {
+        activeProject: config.activeContext,
+        schemaHints: rankTablesByIntent(tables, intent, limit),
+        source: "list_tables",
+      };
     }
+
+    console.warn(
+      "[schema_context_for_task] list_tables retornou vazio — usando fallback estático.",
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[schema_context_for_task] list_tables falhou: ${message}`);
   }
 
   const keywords = intent
@@ -148,6 +98,7 @@ export function registerDataTools(server: McpServer): void {
         intent: args.intent,
         source: resolved.source,
         schema_hints: resolved.schemaHints,
+        error: resolved.error,
       });
     },
   );

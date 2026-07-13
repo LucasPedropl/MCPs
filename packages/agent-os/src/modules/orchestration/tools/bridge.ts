@@ -14,8 +14,6 @@ import {
   listAntigravityModels,
 } from "../providers/antigravity/service.js";
 import { getCascadePoolStats } from "../providers/antigravity/cascade-pool.js";
-import { COPILOT_LIGHT_MODELS, isCopilotLightMode } from "../providers/copilot/config.js";
-import { DEFAULT_COPILOT_MODEL } from "../providers/copilot/types.js";
 import { DEFAULT_CURSOR_MODEL } from "../providers/cursor/types.js";
 import { recordAllProviderHealth } from "../features/observability/health-recorder.js";
 import { getAllProviderStatusesWithAuth } from "../providers/status.js";
@@ -28,7 +26,6 @@ import {
   runDelegationWithFallback,
 } from "../providers/fallback.js";
 import { isHitlEnabled } from "../features/jobs/job-hitl.js";
-import { probeCopilotModels } from "../providers/copilot/model-probe.js";
 import { probeCursorModels } from "../providers/cursor/model-probe.js";
 import { getDelegationLang, getDelegationLangHint } from "../features/delegation/delegation-lang.js";
 import { pickAntigravityModel, inferTaskCategory } from "../providers/antigravity/model-router.js";
@@ -47,8 +44,6 @@ export const BRIDGE_VERSION = "1.0.1";
 export const BRIDGE_FEATURES = {
   antigravity: true,
   cursor: true,
-  copilot: true,
-  copilotProfile: isCopilotLightMode() ? "light" : "full",
   hotReload: process.env["BRIDGE_HOT_RELOAD"] === "1",
   worktreeIsolation: process.env["BRIDGE_ISOLATE_WORKSPACE"] !== "0",
   autoMerge: isAutoMergeEnabled(),
@@ -73,7 +68,6 @@ export const BRIDGE_FEATURES = {
   dynamicModelListing: true,
   githubWebhooks: true,
   realtimeWorker: process.env["BRIDGE_REALTIME_WORKER"] === "1",
-  copilotSessionResume: true,
   antigravityParallel: isAntigravityParallelEnabled(),
   delegationLang: getDelegationLang(),
   delegationLangHint: getDelegationLangHint(),
@@ -84,16 +78,22 @@ export function registerBridgeTools(server: McpServer): void {
   server.tool(
     "bridge_status",
     describeTool("bridge_status"),
-    {},
-    async () => {
+    {
+      verbose: z
+        .boolean()
+        .optional()
+        .describe("Se true, inclui payloads completos de debug (antigravityHealth raw)"),
+    },
+    async ({ verbose }) => {
       const providers = await getAllProviderStatusesWithAuth();
       const supabaseStatus = getSupabaseStatus();
       const supabaseReachable = isSupabaseConfigured()
         ? await probeSupabaseConnection()
         : false;
 
-      let antigravityHealth: Record<string, unknown> | null = null;
+      let antigravitySummary: Record<string, unknown> | null = null;
       let selectedWorkspace: Record<string, unknown> | null = null;
+      let antigravityHealth: Record<string, unknown> | null = null;
 
       let quotaPools: ReturnType<typeof formatAntigravityQuotas> | null = null;
       let workspaceMatch: ReturnType<typeof checkAntigravityWorkspaceMatch> | null = null;
@@ -105,7 +105,6 @@ export function registerBridgeTools(server: McpServer): void {
           workspacePath: instance.workspacePath,
           port: instance.port,
           pid: instance.pid,
-          secure: instance.secure,
         };
         antigravityHealth = await getAntigravityHealth(await getClient());
         workspaceMatch = checkAntigravityWorkspaceMatch(
@@ -123,8 +122,13 @@ export function registerBridgeTools(server: McpServer): void {
         quotaPools = formatAntigravityQuotas(
           configs as Parameters<typeof formatAntigravityQuotas>[0],
         );
+        antigravitySummary = {
+          status: antigravityHealth.status,
+          url: antigravityHealth.url,
+          quotaPools,
+        };
       } catch (error) {
-        antigravityHealth = {
+        antigravitySummary = {
           status: "error",
           message: error instanceof Error ? error.message : String(error),
         };
@@ -139,35 +143,51 @@ export function registerBridgeTools(server: McpServer): void {
         }
       }
 
+      const payload = verbose
+        ? {
+            bridgeVersion: BRIDGE_VERSION,
+            bridgeFeatures: BRIDGE_FEATURES,
+            supabase: { ...supabaseStatus, reachable: supabaseReachable },
+            providers,
+            selectedAntigravityWorkspace: selectedWorkspace,
+            antigravityHealth,
+            quotaPools,
+            workspaceMatch,
+            antigravityCascadePool: getCascadePoolStats(),
+            circuitBreaker: getCircuitBreakerStats(),
+            healthSnapshotsRecorded: healthSnapshots?.length ?? 0,
+            targetWorkspace: getResolvedTargetWorkspace(),
+            workspaceResolution: getWorkspaceResolutionDebug(),
+            autoLaunchEnabled: isAntigravityAutoLaunchEnabled(),
+            defaultCwd: process.env["BRIDGE_DEFAULT_CWD"] ?? process.cwd(),
+          }
+        : {
+            bridgeVersion: BRIDGE_VERSION,
+            providers: providers.map((provider) => ({
+              provider: provider.provider,
+              available: provider.available,
+              authenticated: provider.authenticated,
+              detail: provider.detail,
+            })),
+            workspace: {
+              target: getResolvedTargetWorkspace(),
+              match: workspaceMatch,
+              selected: selectedWorkspace,
+            },
+            antigravity: antigravitySummary,
+            circuitBreaker: getCircuitBreakerStats(),
+            supabase: {
+              configured: supabaseStatus.configured,
+              reachable: supabaseReachable,
+            },
+            healthSnapshotsRecorded: healthSnapshots?.length ?? 0,
+          };
+
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify(
-              {
-                bridgeVersion: BRIDGE_VERSION,
-                bridgeFeatures: BRIDGE_FEATURES,
-                supabase: { ...supabaseStatus, reachable: supabaseReachable },
-                providers,
-                selectedAntigravityWorkspace: selectedWorkspace,
-                antigravityHealth,
-                quotaPools,
-                workspaceMatch,
-                antigravityCascadePool: getCascadePoolStats(),
-                circuitBreaker: getCircuitBreakerStats(),
-                healthSnapshotsRecorded: healthSnapshots?.length ?? 0,
-                targetWorkspace: getResolvedTargetWorkspace(),
-                workspaceResolution: getWorkspaceResolutionDebug(),
-                autoLaunchEnabled: isAntigravityAutoLaunchEnabled(),
-                defaultCwd: process.env["BRIDGE_DEFAULT_CWD"] ?? process.cwd(),
-                hotReloadHint:
-                  process.env["BRIDGE_HOT_RELOAD"] === "1"
-                    ? "Ativo — reinicia ao salvar (clique Restart no MCP se o Cursor não reconectar)"
-                    : "Dev: use npm run mcp:dev no mcp.json",
-              },
-              null,
-              2,
-            ),
+            text: JSON.stringify(payload, null, 2),
           },
         ],
       };
@@ -179,34 +199,11 @@ export function registerBridgeTools(server: McpServer): void {
     describeTool("list_models"),
     {
       provider: z
-        .enum(["antigravity", "cursor", "copilot"])
+        .enum(["antigravity", "cursor"])
         .default("antigravity")
         .describe("Provider de modelos"),
     },
     async ({ provider }) => {
-      if (provider === "copilot") {
-        const dynamic = await probeCopilotModels();
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                {
-                  provider,
-                  profile: isCopilotLightMode() ? "light (student)" : "full",
-                  defaultModel: DEFAULT_COPILOT_MODEL,
-                  recommendedLightModels: COPILOT_LIGHT_MODELS,
-                  models: dynamic,
-                  source: "dynamic_probe",
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-        };
-      }
-
       if (provider === "cursor") {
         const dynamic = await probeCursorModels();
         return {
@@ -266,7 +263,7 @@ export function registerBridgeTools(server: McpServer): void {
     "delegate_task",
     describeTool("delegate_task"),
     {
-      provider: z.enum(["antigravity", "cursor", "copilot"]),
+      provider: z.enum(["antigravity", "cursor"]),
       prompt: z.string(),
       model: z.string().optional(),
       mode: z.enum(["subagent", "bridge", "parallel"]).default("subagent").describe(MODE_DESC),
@@ -274,7 +271,7 @@ export function registerBridgeTools(server: McpServer): void {
       read_tools: z
         .boolean()
         .optional()
-        .describe("Copilot: permite read/search sem escrita"),
+        .describe("Reservado para providers com modo read-only"),
       workspace_path: z.string().optional().describe(WORKSPACE_PATH_DESC),
       timeout_ms: z.number().default(120_000),
     },
@@ -322,7 +319,7 @@ export function registerBridgeTools(server: McpServer): void {
     "delegate_and_wait",
     describeTool("delegate_and_wait"),
     {
-      provider: z.enum(["antigravity", "cursor", "copilot"]).default("antigravity"),
+      provider: z.enum(["antigravity", "cursor"]).default("antigravity"),
       prompt: z.string(),
       model: z.string().optional(),
       agentic_mode: z.boolean().default(false).describe(AGENTIC_MODE_DESC),

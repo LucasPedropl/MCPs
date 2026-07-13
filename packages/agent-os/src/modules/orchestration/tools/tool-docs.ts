@@ -69,17 +69,18 @@ NOTES: Best entry point for external AIs unfamiliar with this MCP.
 `.trim(),
 
   bridge_status: `
-WHEN TO USE: Health check — providers, Supabase, Antigravity quotas, workspace resolution, circuit breaker.
+WHEN TO USE: Health check — providers (Cursor + Antigravity), Supabase, quotas, workspace, circuit breaker.
 WHEN NOT: For a specific job (use get_job_status) or pipeline (use get_pipeline_status).
-RETURNS: { bridgeVersion, bridgeFeatures, providers[], quotaPools[], targetWorkspace, workspaceResolution, antigravityHealth }
-NOTES: Check quotaPools.external.usedPercent before heavy Claude/GPT delegation. Verify targetWorkspace matches your project.
+RETURNS: Resumo enxuto por padrão. verbose=true inclui antigravityHealth raw.
+PARAMS: verbose?
+NOTES: Check quotaPools antes de delegações pesadas. Verify workspace.target matches your project.
 `.trim(),
 
   list_models: `
-WHEN TO USE: Discover available models and quotas for antigravity, cursor, or copilot.
+WHEN TO USE: Discover available models and quotas for antigravity or cursor.
 WHEN NOT: When model is already known. For routing logic use antigravity modelRouter in response.
 RETURNS: { provider, models[], modelRouter?, defaultModel, source }
-NOTES: Copilot student plan — only models with available:true work. Antigravity shows quotaRemaining per model.
+NOTES: Antigravity shows quotaRemaining per model.
 `.trim(),
 
   delegate_task: `

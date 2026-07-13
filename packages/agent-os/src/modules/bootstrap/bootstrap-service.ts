@@ -3,49 +3,12 @@ import * as path from "node:path";
 import { getSupabaseClient, isSupabaseConfigured } from "../../features/supabase-client.js";
 import { titleFromWorkspacePath } from "../projects-registry/slug.js";
 import { upsertProject } from "../projects-registry/project-store.js";
+import { detectStack } from "./bootstrap-detect.js";
 export interface ProjectProfile {
   workspace_path: string;
   stack_json: Record<string, unknown>;
   bundle_json: Record<string, unknown>;
   updated_at: string;
-}
-
-function readPackageJson(workspacePath: string): Record<string, unknown> | null {
-  const pkgPath = path.join(workspacePath, "package.json");
-  if (!fs.existsSync(pkgPath)) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(fs.readFileSync(pkgPath, "utf8")) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
-
-function detectStack(workspacePath: string): Record<string, unknown> {
-  const pkg = readPackageJson(workspacePath);
-  const deps = {
-    ...(pkg?.["dependencies"] as Record<string, string> | undefined),
-    ...(pkg?.["devDependencies"] as Record<string, string> | undefined),
-  };
-
-  const hasDep = (name: string): boolean => Boolean(deps[name]);
-
-  return {
-    hasPackageJson: pkg !== null,
-    next: hasDep("next"),
-    react: hasDep("react"),
-    typescript: hasDep("typescript"),
-    tailwind: hasDep("tailwindcss"),
-    supabase: hasDep("@supabase/supabase-js"),
-    zod: hasDep("zod"),
-    monorepo: fs.existsSync(path.join(workspacePath, "packages")),
-    markers: {
-      git: fs.existsSync(path.join(workspacePath, ".git")),
-      cursor: fs.existsSync(path.join(workspacePath, ".cursor")),
-    },
-  };
 }
 
 function buildRecommendedBundle(stack: Record<string, unknown>): Record<string, unknown> {

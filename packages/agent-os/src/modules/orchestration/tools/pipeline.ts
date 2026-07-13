@@ -17,7 +17,7 @@ import { guardDelegation } from "./policy-guard.js";
 
 const stepSchema = z.object({
   role: z.enum(["plan", "implement", "review", "fix"]),
-  provider: z.enum(["antigravity", "cursor", "copilot"]),
+  provider: z.enum(["antigravity", "cursor"]),
   model: z.string().optional(),
   agentic_mode: z.boolean().optional(),
 });
