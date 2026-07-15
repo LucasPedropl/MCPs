@@ -1,5 +1,5 @@
 {
   "extends": "./tsconfig.json",
-  "files": ["src/modules/orchestration/tools/parallel.ts"],
+  "files": ["src/tools/memory-tools.ts"],
   "include": []
 }
