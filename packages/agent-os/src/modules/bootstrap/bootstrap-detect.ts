@@ -49,7 +49,7 @@ function expandWorkspaceGlobs(root: string, patterns: string[]): string[] {
       continue;
     }
 
-    const [parentPattern] = normalized.split("*");
+    const parentPattern = normalized.split("*")[0] ?? "";
     const parentDir = path.resolve(root, parentPattern.replace(/\/$/, ""));
     if (!fs.existsSync(parentDir)) {
       continue;

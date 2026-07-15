@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { errorText, jsonText } from "@mcps/shared";
+import { errorText, guardedJsonText, jsonText } from "@mcps/shared";
+import { getMcpResultMaxChars } from "../config/env.js";
 import {
   callChildTool,
   disconnectChild,
@@ -31,27 +32,50 @@ export interface McpConnectionSummary {
   transport: string;
   status: string;
   toolCount: number;
-  toolNames: string[];
+  toolNames?: string[];
   last_health_at: string | null;
   config_json?: Record<string, unknown>;
   tool_cache_json?: Array<{ name: string; description?: string }>;
 }
 
-function summarizeConnections(
+export interface McpConnectionsOverview {
+  total: number;
+  connected: McpConnectionSummary[];
+  /** Aliases por padrão (hub lazy: conectam sob demanda); objetos com include_disconnected. */
+  disconnected: string[] | McpConnectionSummary[];
+  hint: string;
+}
+
+const TOOL_NAMES_CAP = 25;
+
+export function summarizeConnections(
   connections: Awaited<ReturnType<typeof listConnections>>,
-  options: { includeConfig?: boolean; includeToolCache?: boolean },
-): McpConnectionSummary[] {
-  return connections.map((connection) => {
+  options: {
+    includeConfig?: boolean;
+    includeToolCache?: boolean;
+    includeToolNames?: boolean;
+    includeDisconnected?: boolean;
+  },
+): McpConnectionsOverview {
+  const toSummary = (
+    connection: Awaited<ReturnType<typeof listConnections>>[number],
+  ): McpConnectionSummary => {
     const summary: McpConnectionSummary = {
       id: connection.id,
       alias: connection.alias,
       transport: connection.transport,
       status: connection.status,
       toolCount: connection.tool_cache_json.length,
-      toolNames: connection.tool_cache_json.map((tool) => tool.name),
       last_health_at: connection.last_health_at,
     };
 
+    if (options.includeToolNames) {
+      const names = connection.tool_cache_json.map((tool) => tool.name);
+      summary.toolNames =
+        names.length > TOOL_NAMES_CAP
+          ? [...names.slice(0, TOOL_NAMES_CAP), `+${names.length - TOOL_NAMES_CAP} more`]
+          : names;
+    }
     if (options.includeConfig) {
       summary.config_json = redactMcpConfig(connection.config_json);
     }
@@ -60,7 +84,23 @@ function summarizeConnections(
     }
 
     return summary;
-  });
+  };
+
+  const connected = connections
+    .filter((connection) => connection.status === "connected")
+    .map(toSummary);
+  const disconnectedRaw = connections.filter(
+    (connection) => connection.status !== "connected",
+  );
+
+  return {
+    total: connections.length,
+    connected,
+    disconnected: options.includeDisconnected
+      ? disconnectedRaw.map(toSummary)
+      : disconnectedRaw.map((connection) => connection.alias),
+    hint: "Hub lazy: desconectados conectam sob demanda no call_mcp_tool. Tools de um alias: list_mcp_tools {alias}.",
+  };
 }
 
 type InstallMcpArgs = {
@@ -156,6 +196,14 @@ export function registerMcpHubTools(server: McpServer): void {
       inputSchema: {
         include_config: z.boolean().optional(),
         include_tool_cache: z.boolean().optional(),
+        include_tool_names: z
+          .boolean()
+          .optional()
+          .describe("Inclui toolNames dos conectados (cap 25 + '+N more')"),
+        include_disconnected: z
+          .boolean()
+          .optional()
+          .describe("Desconectados como objetos completos (default: só aliases)"),
       },
     },
     async (args) =>
@@ -163,6 +211,8 @@ export function registerMcpHubTools(server: McpServer): void {
         summarizeConnections(await listConnections(), {
           includeConfig: args.include_config ?? false,
           includeToolCache: args.include_tool_cache ?? false,
+          includeToolNames: args.include_tool_names ?? false,
+          includeDisconnected: args.include_disconnected ?? false,
         }),
       ),
   );
@@ -248,6 +298,10 @@ export function registerMcpHubTools(server: McpServer): void {
         alias: z.string(),
         tool_name: z.string(),
         arguments: z.record(z.unknown()).default({}),
+        max_chars: z
+          .number()
+          .optional()
+          .describe("Cap de chars do resultado (default env AGENT_OS_MCP_RESULT_MAX_CHARS=25000; <=0 desliga)"),
       },
     },
     async (args) => {
@@ -256,7 +310,10 @@ export function registerMcpHubTools(server: McpServer): void {
         return errorText(`MCP '${args.alias}' não encontrado.`);
       }
       const result = await callChildTool(connection, args.tool_name, args.arguments);
-      return jsonText(result);
+      return guardedJsonText(result, {
+        maxChars: args.max_chars ?? getMcpResultMaxChars(),
+        hint: "; use get_mcp_tool_schema {alias, tool_name} para achar params de paginação/filtro",
+      });
     },
   );
 

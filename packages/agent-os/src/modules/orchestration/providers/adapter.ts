@@ -35,6 +35,7 @@ class AntigravityAdapter implements IProviderAdapter {
       model: params.model,
       mode: params.mode === "bridge" ? "bridge" : "subagent",
       agenticMode: params.agentic_mode,
+      plannerMode: params.planner_mode,
       timeoutMs: params.timeout_ms,
       onProgress: params.on_chunk
         ? (p) => {
@@ -50,6 +51,8 @@ class AntigravityAdapter implements IProviderAdapter {
       cascadeId: result.cascadeId,
       model: result.model,
       messageId: result.messageId,
+      awaiting_plan_approval: result.awaitingPlanApproval,
+      hint: result.hint,
     };
   }
 

@@ -12,6 +12,8 @@ import {
 } from "../features/proxy/supabase-mcp-proxy.js";
 import { getHubStatus } from "../features/accounts/services/hub-status.js";
 import { exportMcpConfig } from "../features/config/mcp-config-exporter.js";
+import { guardedJsonText } from "@mcps/shared";
+import { getMcpResultMaxChars } from "../../../config/env.js";
 import { describeAgentTool } from "../../../tools/tool-docs.js";
 import { errorText, jsonText } from "./hub-tools-core.js";
 import { sanitizeProject } from "../hub-sanitize.js";
@@ -110,11 +112,18 @@ export function registerUnifiedHubTools(server: McpServer): void {
       inputSchema: z.object({
         toolName: z.string().min(1),
         arguments: z.record(z.unknown()).default({}),
+        max_chars: z
+          .number()
+          .optional()
+          .describe("Cap de chars do resultado (default env AGENT_OS_MCP_RESULT_MAX_CHARS=25000; <=0 desliga)"),
       }),
     },
-    async ({ toolName, arguments: toolArgs }) => {
+    async ({ toolName, arguments: toolArgs, max_chars }) => {
       try {
-        return jsonText(await callSupabaseTool(toolName, toolArgs));
+        return guardedJsonText(await callSupabaseTool(toolName, toolArgs), {
+          maxChars: max_chars ?? getMcpResultMaxChars(),
+          hint: "; para execute_sql use LIMIT/colunas específicas; para get_logs estreite o intervalo",
+        });
       } catch (error) {
         return errorText(error instanceof Error ? error.message : String(error));
       }

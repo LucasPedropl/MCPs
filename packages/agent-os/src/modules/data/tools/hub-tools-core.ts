@@ -1,6 +1,12 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
+  errorText as sharedErrorText,
+  guardedJsonText,
+  jsonText,
+} from "@mcps/shared";
+import { getMcpResultMaxChars } from "../../../config/env.js";
+import {
   addAccount,
   loadConfig,
   removeAccount,
@@ -41,23 +47,11 @@ import { exportMcpConfig } from "../features/config/mcp-config-exporter.js";
 import { buildKeepAliveStatusPayload } from "../hub-sanitize.js";
 import { importFromLegacySupabase } from "../features/accounts/services/legacy-import.js";
 
-export function jsonText(data: unknown): {
-  content: Array<{ type: "text"; text: string }>;
-} {
-  return {
-    content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
-  };
-}
+export { jsonText };
 
-export function errorText(message: string): {
-  content: Array<{ type: "text"; text: string }>;
-  isError: true;
-} {
+export function errorText(message: string): ReturnType<typeof sharedErrorText> {
   console.error(`[supabase-hub] ${message}`);
-  return {
-    content: [{ type: "text", text: message }],
-    isError: true,
-  };
+  return sharedErrorText(message);
 }
 
 export function registerAccountTools(server: McpServer): void {
@@ -441,11 +435,18 @@ export function registerProxyTools(server: McpServer): void {
       inputSchema: z.object({
         toolName: z.string().min(1),
         arguments: z.record(z.unknown()).default({}),
+        max_chars: z
+          .number()
+          .optional()
+          .describe("Cap de chars do resultado (default env AGENT_OS_MCP_RESULT_MAX_CHARS=25000; <=0 desliga)"),
       }),
     },
-    async ({ toolName, arguments: toolArgs }) => {
+    async ({ toolName, arguments: toolArgs, max_chars }) => {
       try {
-        return jsonText(await callSupabaseTool(toolName, toolArgs));
+        return guardedJsonText(await callSupabaseTool(toolName, toolArgs), {
+          maxChars: max_chars ?? getMcpResultMaxChars(),
+          hint: "; para execute_sql use LIMIT/colunas específicas; para get_logs estreite o intervalo",
+        });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         return errorText(message);
@@ -478,8 +479,9 @@ export function registerProxyTools(server: McpServer): void {
       },
       async (args) => {
         try {
-          return jsonText(
+          return guardedJsonText(
             await callSupabaseTool(toolName, args as Record<string, unknown>),
+            { maxChars: getMcpResultMaxChars() },
           );
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);

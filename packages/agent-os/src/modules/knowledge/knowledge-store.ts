@@ -137,26 +137,39 @@ export async function listSkills(workspacePath?: string): Promise<SkillRecord[]>
   return [...merged.values()];
 }
 
-export async function resolveSkills(input: {
-  intent: string;
-  workspacePath?: string;
-  limit?: number;
-}): Promise<SkillRecord[]> {
-  const skills = await listSkills(input.workspacePath);
-  const tokens = input.intent
+export type ScoredSkill = SkillRecord & { score: number };
+
+/** Ranking puro por overlap de tokens da intent com name+description. */
+export function scoreSkillsByIntent(
+  skills: SkillRecord[],
+  intent: string,
+): ScoredSkill[] {
+  const tokens = intent
     .toLowerCase()
     .split(/\s+/)
     .filter((token) => token.length > 2);
 
-  const ranked = [...skills].sort((left, right) => {
-    const leftText = `${left.name} ${left.description}`.toLowerCase();
-    const rightText = `${right.name} ${right.description}`.toLowerCase();
-    const leftScore = tokens.filter((token) => leftText.includes(token)).length;
-    const rightScore = tokens.filter((token) => rightText.includes(token)).length;
-    return rightScore - leftScore;
-  });
+  return skills
+    .map((skill) => {
+      const text = `${skill.name} ${skill.description}`.toLowerCase();
+      const score = tokens.filter((token) => text.includes(token)).length;
+      return { ...skill, score };
+    })
+    .sort((left, right) => right.score - left.score);
+}
 
-  return ranked.slice(0, input.limit ?? 3);
+export async function resolveSkills(input: {
+  intent: string;
+  workspacePath?: string;
+  limit?: number;
+  /** Score mínimo para entrar no resultado (default 1: score 0 não preenche o limit). */
+  minScore?: number;
+}): Promise<ScoredSkill[]> {
+  const skills = await listSkills(input.workspacePath);
+  const minScore = input.minScore ?? 1;
+  return scoreSkillsByIntent(skills, input.intent)
+    .filter((skill) => skill.score >= minScore)
+    .slice(0, input.limit ?? 3);
 }
 
 export async function upsertSkill(input: {

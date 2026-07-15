@@ -113,6 +113,7 @@ export async function buildUsageGuide(workspaceOverride?: string): Promise<Usage
       multi_step_feature: "run_pipeline",
       compare_providers: "delegate_parallel",
       multi_turn: "create_session → continue_session",
+      approve_antigravity_plan: "continue_session (approve_plan=true)",
       cancel: "cancel_job",
       debug_failed: "job_admin (action=dlq)",
     },
@@ -138,8 +139,9 @@ export async function buildUsageGuide(workspaceOverride?: string): Promise<Usage
       BRIDGE_REALTIME_WORKER: "1 = processa jobs via Supabase Realtime",
       BRIDGE_HOT_RELOAD: "1 = reinicia MCP ao salvar código",
       BRIDGE_ISOLATE_WORKSPACE: "0 = desliga worktree isolation",
+      BRIDGE_ANTIGRAVITY_PLANNER_MODE: "off (default) | on | default — Plan Mode do Antigravity",
       BRIDGE_DELEGATION_LANG: "en (default, token savings) | pt — idioma inter-agente Antigravity",
-      BRIDGE_DELEGATION_LANG_ALL: "1 = aplica prefixo EN também em Cursor/Copilot",
+      BRIDGE_DELEGATION_LANG_ALL: "1 = aplica prefixo EN também em Cursor",
     },
   };
 }

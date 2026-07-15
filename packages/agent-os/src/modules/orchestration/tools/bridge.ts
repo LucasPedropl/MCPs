@@ -18,7 +18,7 @@ import { DEFAULT_CURSOR_MODEL } from "../providers/cursor/types.js";
 import { recordAllProviderHealth } from "../features/observability/health-recorder.js";
 import { getAllProviderStatusesWithAuth } from "../providers/status.js";
 import { getTargetWorkspacePath } from "../client/workspace.js";
-import { isAntigravityParallelEnabled } from "../providers/antigravity/config.js";
+import { isAntigravityParallelEnabled, getAntigravityPlannerModeDefault } from "../providers/antigravity/config.js";
 import { isAutoMergeEnabled } from "../features/workspace/git-merge.js";
 import {
   getCircuitBreakerStats,
@@ -36,6 +36,7 @@ import {
   describeTool,
   AGENTIC_MODE_DESC,
   MODE_DESC,
+  PLANNER_MODE_DESC,
   WORKSPACE_PATH_DESC,
 } from "./tool-docs.js";
 import { guardDelegation } from "./policy-guard.js";
@@ -65,6 +66,7 @@ export const BRIDGE_FEATURES = {
   hitl: isHitlEnabled(),
   providerAdapter: true,
   antigravityModelRouter: true,
+  antigravityPlannerMode: getAntigravityPlannerModeDefault(),
   dynamicModelListing: true,
   githubWebhooks: true,
   realtimeWorker: process.env["BRIDGE_REALTIME_WORKER"] === "1",
@@ -268,6 +270,10 @@ export function registerBridgeTools(server: McpServer): void {
       model: z.string().optional(),
       mode: z.enum(["subagent", "bridge", "parallel"]).default("subagent").describe(MODE_DESC),
       agentic_mode: z.boolean().default(false).describe(AGENTIC_MODE_DESC),
+      planner_mode: z
+        .enum(["off", "on", "default"])
+        .optional()
+        .describe(PLANNER_MODE_DESC),
       read_tools: z
         .boolean()
         .optional()
@@ -323,6 +329,10 @@ export function registerBridgeTools(server: McpServer): void {
       prompt: z.string(),
       model: z.string().optional(),
       agentic_mode: z.boolean().default(false).describe(AGENTIC_MODE_DESC),
+      planner_mode: z
+        .enum(["off", "on", "default"])
+        .optional()
+        .describe(PLANNER_MODE_DESC),
       mode: z.enum(["subagent", "bridge"]).default("subagent").describe(MODE_DESC),
       workspace_path: z.string().optional().describe(WORKSPACE_PATH_DESC),
       timeout_ms: z.number().default(120_000),
@@ -337,6 +347,25 @@ export function registerBridgeTools(server: McpServer): void {
         const result = await runDelegationWithFallback({ ...params, mode: params.mode });
         if (!result.success) {
           return { content: [{ type: "text", text: result.message }], isError: true };
+        }
+        if (result.awaiting_plan_approval) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(
+                  {
+                    awaiting_plan_approval: true,
+                    cascadeId: result.cascadeId,
+                    response: result.response,
+                    hint: result.hint,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
         }
         return { content: [{ type: "text", text: result.response }] };
       } catch (error) {

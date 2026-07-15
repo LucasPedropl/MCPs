@@ -1,6 +1,5 @@
 import type { AntigravityClient } from "../../client/antigravity-client.js";
 import {
-  DEFAULT_ANTIGRAVITY_MODEL,
   type CascadeConfig,
   type DelegationMode,
   type ModelEnum,
@@ -8,8 +7,14 @@ import {
   type StartCascadeResponse,
 } from "../../client/types.js";
 import { pollForResponse } from "../../utils/polling.js";
+import { AWAITING_PLAN_HINT } from "../../utils/plan-approval.js";
 import { withCascadeSlot, getCascadePoolStats } from "./cascade-pool.js";
-import { isAntigravityParallelEnabled } from "./config.js";
+import {
+  isAntigravityParallelEnabled,
+  resolveAntigravityPlannerMode,
+  type AntigravityPlannerMode,
+  type PlannerModeParam,
+} from "./config.js";
 import { resolveAntigravityModel } from "./model-router.js";
 import {
   delegateToHeadlessAntigravity,
@@ -21,6 +26,7 @@ export interface DelegateToAntigravityInput {
   prompt: string;
   model?: string;
   agenticMode?: boolean;
+  plannerMode?: PlannerModeParam;
   maxOutputTokens?: number;
   timeoutMs?: number;
   workspacePath?: string;
@@ -36,17 +42,20 @@ export interface DelegateToAntigravityResult {
   usedHeadless?: boolean;
   isolatedBranch?: string;
   modeUsed?: "subagent" | "bridge" | "headless";
+  awaitingPlanApproval?: boolean;
+  hint?: string;
 }
 
 function buildCascadeConfig(
   model: ModelEnum,
   agenticMode: boolean,
   maxOutputTokens: number,
+  plannerMode: AntigravityPlannerMode,
 ): CascadeConfig {
   return {
     plannerConfig: {
       planModel: model,
-      conversational: { agenticMode },
+      conversational: { agenticMode, plannerMode },
       maxOutputTokens,
       requestedModel: { model },
     },
@@ -68,6 +77,7 @@ async function runCascadeDelegation(
   );
   const model = routeResult.model;
   const agenticMode = input.agenticMode ?? false;
+  const plannerMode = resolveAntigravityPlannerMode(input.plannerMode);
   const maxOutputTokens = input.maxOutputTokens ?? 8192;
   const timeoutMs = input.timeoutMs ?? 120_000;
   const showInChat = mode === "bridge";
@@ -82,7 +92,7 @@ async function runCascadeDelegation(
   await client.call<SendUserCascadeMessageResponse>("SendUserCascadeMessage", {
     cascadeId,
     items: [{ text: input.prompt }],
-    cascadeConfig: buildCascadeConfig(model, agenticMode, maxOutputTokens),
+    cascadeConfig: buildCascadeConfig(model, agenticMode, maxOutputTokens, plannerMode),
     clientType: showInChat ? "IDE" : "SDK_EXECUTABLE",
   });
 
@@ -93,12 +103,15 @@ async function runCascadeDelegation(
     onProgress: input.onProgress,
   });
 
+  const awaiting = Boolean(result.awaitingPlanApproval);
   return {
     cascadeId,
     response: result.response,
     model: result.model ?? model,
     messageId: result.messageId,
     modeUsed: mode,
+    awaitingPlanApproval: awaiting || undefined,
+    hint: awaiting ? AWAITING_PLAN_HINT : undefined,
   };
   });
 }
@@ -161,6 +174,7 @@ export async function getAntigravityHealth(client: AntigravityClient): Promise<R
     headlessAvailable: isHeadlessAvailable(),
     headlessEnabled: isHeadlessAntigravityEnabled(),
     parallelEnabled: isAntigravityParallelEnabled(),
+    plannerModeDefault: resolveAntigravityPlannerMode(),
     cascadePool: getCascadePoolStats(),
   };
 }

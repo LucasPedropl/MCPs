@@ -14,8 +14,12 @@ import { runDelegation } from "./delegation.js";
 import {
   describeTool,
   AGENTIC_MODE_DESC,
+  PLANNER_MODE_DESC,
   WORKSPACE_PATH_DESC,
 } from "./tool-docs.js";
+
+const plannerModeSchema = z.enum(["off", "on", "default"]).optional();
+
 function jsonContent(data: unknown) {
   return {
     content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
@@ -40,10 +44,20 @@ export function registerSessionTools(server: McpServer): void {
       title: z.string().optional(),
       model: z.string().optional(),
       agentic_mode: z.boolean().default(false).describe(AGENTIC_MODE_DESC),
+      planner_mode: plannerModeSchema.describe(PLANNER_MODE_DESC),
       workspace_path: z.string().optional().describe(WORKSPACE_PATH_DESC),
       timeout_ms: z.number().default(120_000),
     },
-    async ({ provider, prompt, title, model, agentic_mode, workspace_path, timeout_ms }) => {
+    async ({
+      provider,
+      prompt,
+      title,
+      model,
+      agentic_mode,
+      planner_mode,
+      workspace_path,
+      timeout_ms,
+    }) => {
       try {
         requireSupabase();
         const workspace = resolveWorkspacePath(workspace_path);
@@ -53,6 +67,7 @@ export function registerSessionTools(server: McpServer): void {
           model,
           mode: "subagent",
           agentic_mode,
+          planner_mode,
           timeout_ms,
           workspace_path: workspace,
         });
@@ -75,7 +90,10 @@ export function registerSessionTools(server: McpServer): void {
           sessionId: session.id,
           provider,
           externalSessionId: session.external_session_id,
+          cascadeId: result.cascadeId,
           response: result.response,
+          awaiting_plan_approval: result.awaiting_plan_approval,
+          hint: result.hint,
         });
       } catch (error) {
         return {
@@ -91,13 +109,28 @@ export function registerSessionTools(server: McpServer): void {
 
   server.tool(
     "continue_session",
-    describeTool("continue_session"),    {
+    describeTool("continue_session"),
+    {
       session_id: z.string().uuid(),
-      prompt: z.string().min(1),
+      prompt: z
+        .string()
+        .optional()
+        .describe("Obrigatório salvo com approve_plan/reject_plan"),
       model: z.string().optional(),
       agentic_mode: z.boolean().default(false),
+      planner_mode: plannerModeSchema.describe(PLANNER_MODE_DESC),
       timeout_ms: z.number().default(120_000),
       include_context_pack: z.boolean().default(true),
+      approve_plan: z
+        .boolean()
+        .optional()
+        .describe(
+          "Aprova o plano do Antigravity e pede implementação no mesmo cascade (agentic + PLANNING_OFF)",
+        ),
+      reject_plan: z
+        .boolean()
+        .optional()
+        .describe("Rejeita o plano e pede para parar sem implementar"),
     },
     async (params) => {
       try {
@@ -107,8 +140,11 @@ export function registerSessionTools(server: McpServer): void {
           prompt: params.prompt,
           model: params.model,
           agentic_mode: params.agentic_mode,
+          planner_mode: params.planner_mode,
           timeout_ms: params.timeout_ms,
           include_context_pack: params.include_context_pack,
+          approve_plan: params.approve_plan,
+          reject_plan: params.reject_plan,
         });
 
         return jsonContent({ success: true, ...result });

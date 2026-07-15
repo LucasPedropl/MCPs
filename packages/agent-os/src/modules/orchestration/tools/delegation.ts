@@ -2,7 +2,6 @@ import { AntigravityClient } from "../client/antigravity-client.js";
 import { resolveInstance } from "../client/discovery.js";
 import { prepareProviderPrompt } from "../features/delegation/delegation-lang.js";
 import type { BridgeProvider } from "../client/types.js";
-import { getTargetWorkspacePath } from "../client/workspace.js";
 import { resolveWorkspacePath } from "../client/workspace-resolve.js";
 import {
   finalizeDelegationWorkspace,
@@ -16,7 +15,10 @@ import {
   type DelegationWorkspace,
 } from "../features/workspace/git-worktree.js";
 import { delegateToAntigravity } from "../providers/antigravity/service.js";
-import { isAntigravityParallelEnabled } from "../providers/antigravity/config.js";
+import {
+  isAntigravityParallelEnabled,
+  type PlannerModeParam,
+} from "../providers/antigravity/config.js";
 import { isHeadlessAntigravityEnabled, isHeadlessAvailable } from "../providers/antigravity/headless.js";
 import { withWorkspaceLock } from "../features/workspace/lock-store.js";
 import { delegateToCursor } from "../providers/cursor/service.js";
@@ -32,6 +34,7 @@ export interface DelegateParams {
   model?: string;
   mode: DelegationMode;
   agentic_mode: boolean;
+  planner_mode?: PlannerModeParam;
   read_tools?: boolean;
   timeout_ms: number;
   holder_id?: string;
@@ -54,6 +57,8 @@ export type DelegationSuccess = {
   worktreePath?: string;
   isolationNote?: string;
   merge?: MergeDelegationResult;
+  awaiting_plan_approval?: boolean;
+  hint?: string;
 };
 
 export type DelegationFailure = {
@@ -66,9 +71,11 @@ export type DelegationResult = DelegationSuccess | DelegationFailure;
 let cachedClient: AntigravityClient | null = null;
 let cachedInstanceKey = "";
 
-async function getAntigravityClient(): Promise<AntigravityClient> {
-  const instance = await resolveInstance();
-  const key = `${instance.port}:${instance.csrfToken}:${instance.workspace}`;
+async function getAntigravityClient(
+  workspaceOverride?: string,
+): Promise<AntigravityClient> {
+  const instance = await resolveInstance(workspaceOverride);
+  const key = `${instance.port}:${instance.csrfToken}:${instance.workspace}:${workspaceOverride ?? ""}`;
 
   if (!cachedClient || cachedInstanceKey !== key) {
     cachedClient = new AntigravityClient(instance);
@@ -119,8 +126,22 @@ function needsAgenticLock(provider: BridgeProvider, agentic: boolean, isolated: 
 
 /** Executa delegação síncrona para Antigravity ou Cursor. */
 export async function runDelegation(params: DelegateParams): Promise<DelegationResult> {
-  const { provider, prompt, model, mode, agentic_mode, read_tools, timeout_ms, on_chunk, holder_id, session_id } =
-    params;
+  const {
+    provider,
+    prompt,
+    model,
+    mode,
+    agentic_mode,
+    planner_mode,
+    read_tools,
+    timeout_ms,
+    on_chunk,
+    holder_id,
+    session_id,
+  } = params;
+
+  void read_tools;
+  void session_id;
 
   const delegatedPrompt = prepareProviderPrompt(prompt, provider);
   const baseWorkspace = resolveWorkspacePath(params.workspace_path);
@@ -169,15 +190,16 @@ export async function runDelegation(params: DelegateParams): Promise<DelegationR
       };
     }
 
-    const client = await getAntigravityClient();
+    const client = await getAntigravityClient(baseWorkspace);
     const emitProgress = on_chunk ? createGrowingTextEmitter(on_chunk) : undefined;
     const result = await delegateToAntigravity(client, {
       prompt: delegatedPrompt,
       model,
       mode: mode === "bridge" ? "bridge" : "subagent",
       agenticMode: agentic_mode,
+      plannerMode: planner_mode,
       timeoutMs: timeout_ms,
-      workspacePath: delegated.isolated ? delegated.path : undefined,
+      workspacePath: delegated.isolated ? delegated.path : baseWorkspace,
       onProgress: emitProgress
         ? (partial) => {
             emitProgress(partial.response);
@@ -203,6 +225,8 @@ export async function runDelegation(params: DelegateParams): Promise<DelegationR
       worktreePath: delegated.worktreePath,
       isolationNote,
       merge,
+      awaiting_plan_approval: result.awaitingPlanApproval,
+      hint: result.hint,
     };
   } catch (error) {
     finalizeIsolatedWorkspace(delegated, false);

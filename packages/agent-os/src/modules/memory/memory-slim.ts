@@ -1,3 +1,4 @@
+import type { MemoryScope } from "@mcps/shared";
 import type {
   DecisionRecord,
   PitfallRecord,
@@ -5,7 +6,7 @@ import type {
 } from "../memory/memory-store.js";
 
 export interface SlimMemoryRecall {
-  preferences: Array<{ key: string; value: unknown; scope: string }>;
+  preferences: Array<{ key: string; value: unknown; scope: MemoryScope }>;
   decisions: Array<{
     topic: string;
     chosen_option: string;

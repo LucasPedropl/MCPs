@@ -63,6 +63,59 @@ export function isKeepAliveWorkerEnabled(): boolean {
   return envFirst("AGENT_OS_KEEPALIVE_WORKER") === "1";
 }
 
+const DEFAULT_MCP_RESULT_MAX_CHARS = 25_000;
+
+/**
+ * Cap de chars para resultados de tools proxy (call_mcp_tool, call_supabase_tool).
+ * Env AGENT_OS_MCP_RESULT_MAX_CHARS; <=0 desliga o guard.
+ */
+export function getMcpResultMaxChars(): number {
+  const raw = envFirst("AGENT_OS_MCP_RESULT_MAX_CHARS");
+  if (!raw) {
+    return DEFAULT_MCP_RESULT_MAX_CHARS;
+  }
+  const parsed = Number(raw);
+  if (Number.isNaN(parsed)) {
+    console.error(
+      `[agent-os] AGENT_OS_MCP_RESULT_MAX_CHARS inválido ('${raw}') — usando default ${DEFAULT_MCP_RESULT_MAX_CHARS}.`,
+    );
+    return DEFAULT_MCP_RESULT_MAX_CHARS;
+  }
+  return parsed;
+}
+
+export type ToolDocsMode = "compact" | "full";
+
+/** Env AGENT_OS_TOOL_DOCS: compact (default) | full (rollback sem rebuild). */
+export function getToolDocsMode(): ToolDocsMode {
+  const raw = envFirst("AGENT_OS_TOOL_DOCS")?.toLowerCase();
+  return raw === "full" ? "full" : "compact";
+}
+
+export interface ToolFilter {
+  allow: Set<string>;
+  deny: Set<string>;
+  active: boolean;
+}
+
+/**
+ * Envs AGENT_OS_TOOLS_ALLOW / AGENT_OS_TOOLS_DENY (csv de nomes de tool).
+ * Allow não-vazio = só esses; deny remove depois. Default: sem filtro.
+ */
+export function getToolFilter(): ToolFilter {
+  const parseCsv = (value: string | undefined): Set<string> =>
+    new Set(
+      (value ?? "")
+        .split(",")
+        .map((token) => token.trim())
+        .filter(Boolean),
+    );
+
+  const allow = parseCsv(envFirst("AGENT_OS_TOOLS_ALLOW"));
+  const deny = parseCsv(envFirst("AGENT_OS_TOOLS_DENY"));
+  return { allow, deny, active: allow.size > 0 || deny.size > 0 };
+}
+
 export const AGENT_OS_MODULES = [
   "memory",
   "bootstrap",

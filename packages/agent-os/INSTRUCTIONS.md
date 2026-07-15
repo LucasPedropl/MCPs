@@ -30,6 +30,7 @@ delegação multi-IDE, hub Supabase multi-conta e hub lazy de MCPs externos.
 | Consultar skill/playbook | `resolve_skills` / `playbook` (action=get) |
 | Ver/editar portfólio de projetos | `list_agent_projects` / `upsert_project` / `sync_project` |
 | Validar código ao final | `run_quality_gates` → `run_autofix_loop` se falhar |
+| Detalhes de uma tool (doc completa) | `get_usage_guide` tool_name=... |
 
 ## Limitações conhecidas
 
@@ -72,6 +73,20 @@ o pattern contém `*` sem sintaxe regex.
 
 Ex.: `AGENT_OS_MODULES=memory,context,data,policy` sobe um servidor enxuto só
 com memória + banco. Core (`agent_os_status`, `get_usage_guide`) sempre ativo.
+
+## Envs de eficiência de tokens
+
+- `AGENT_OS_MCP_RESULT_MAX_CHARS` (default 25000): cap de chars nos resultados
+  de `call_mcp_tool`/`call_supabase_tool`, com marcador TRUNCATED; `<=0` desliga.
+  Por chamada: param `max_chars`.
+- `AGENT_OS_TOOL_DOCS` (`compact`|`full`, default `compact`): descrições
+  compactas no tools/list; doc completa sob demanda via
+  `get_usage_guide tool_name=...`. `full` é a alavanca de rollback sem rebuild.
+- `AGENT_OS_TOOLS_ALLOW` / `AGENT_OS_TOOLS_DENY` (csv, default unset): filtro de
+  superfície de tools por cliente (ex.:
+  `AGENT_OS_TOOLS_DENY=rollback_task,delete_project,webhooks`); allow não-vazio
+  = só esses, deny remove depois. `agent_os_status` e `get_usage_guide` nunca
+  são ocultadas.
 
 ## Nota sobre Supabase
 

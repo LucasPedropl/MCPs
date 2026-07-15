@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { errorText, jsonText } from "@mcps/shared";
+import { errorText, guardedJsonText, jsonText } from "@mcps/shared";
 import {
   bindSkillToProject,
   deletePlaybook,
@@ -28,11 +28,24 @@ type SkillAdminArgs = {
   skill_id?: string;
   priority?: number;
   workspace_path?: string;
+  include_content?: boolean;
 };
 
 async function handleSkillAdmin(args: SkillAdminArgs) {
   if (args.action === "list") {
-    return jsonText(await listSkills(args.workspace_path));
+    const skills = await listSkills(args.workspace_path);
+    if (args.include_content) {
+      return jsonText(skills);
+    }
+    return jsonText(
+      skills.map((skill) => ({
+        name: skill.name,
+        description: skill.description,
+        version: skill.version,
+        scope: skill.scope,
+        content_chars: skill.content_md.length,
+      })),
+    );
   }
 
   if (args.action === "upsert") {
@@ -85,7 +98,7 @@ async function handlePlaybook(args: PlaybookArgs) {
 
   if (args.action === "get") {
     if (!args.alias) return errorText("action=get exige 'alias'.");
-    return jsonText({ content: await getLatestPlaybook(args.alias) });
+    return guardedJsonText({ content: await getLatestPlaybook(args.alias) });
   }
 
   if (args.action === "update") {
@@ -126,16 +139,39 @@ export function registerKnowledgeTools(server: McpServer): void {
         intent: z.string(),
         workspace_path: z.string().optional(),
         limit: z.number().optional(),
+        include_content: z
+          .boolean()
+          .optional()
+          .describe("true devolve content_md completo (shape antigo + score)"),
+        min_score: z
+          .number()
+          .optional()
+          .describe("Score mínimo de relevância (default 1; 0 restaura comportamento antigo)"),
       },
     },
-    async (args) =>
-      jsonText(
-        await resolveSkills({
-          intent: args.intent,
-          workspacePath: args.workspace_path,
-          limit: args.limit,
-        }),
-      ),
+    async (args) => {
+      const resolved = await resolveSkills({
+        intent: args.intent,
+        workspacePath: args.workspace_path,
+        limit: args.limit,
+        minScore: args.min_score,
+      });
+
+      if (args.include_content) {
+        return jsonText(resolved);
+      }
+
+      return jsonText({
+        skills: resolved.map((skill) => ({
+          name: skill.name,
+          description: skill.description,
+          version: skill.version,
+          scope: skill.scope,
+          score: skill.score,
+        })),
+        hint: "Conteúdo completo: get_skill {name} ou include_content=true.",
+      });
+    },
   );
 
   server.registerTool(
@@ -144,7 +180,7 @@ export function registerKnowledgeTools(server: McpServer): void {
       description: describeAgentTool("get_skill"),
       inputSchema: { name: z.string(), version: z.string().optional() },
     },
-    async (args) => jsonText(await getSkill(args.name, args.version)),
+    async (args) => guardedJsonText(await getSkill(args.name, args.version)),
   );
 
   server.registerTool(
@@ -182,6 +218,10 @@ export function registerKnowledgeTools(server: McpServer): void {
         skill_id: z.string().optional(),
         priority: z.number().optional(),
         workspace_path: z.string().optional(),
+        include_content: z
+          .boolean()
+          .optional()
+          .describe("list: true devolve content_md completo (default só metadados + content_chars)"),
       },
     },
     async (args) => handleSkillAdmin(args as SkillAdminArgs),

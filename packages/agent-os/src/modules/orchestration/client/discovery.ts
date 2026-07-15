@@ -1,4 +1,5 @@
 import { execSync } from "node:child_process";
+import * as path from "node:path";
 import type { AntigravityInstance } from "./types.js";
 import {
   describeLaunchTarget,
@@ -232,8 +233,12 @@ async function waitForTargetInstance(targetPath: string): Promise<AntigravityIns
   );
 }
 
-async function ensureAntigravityForWorkspace(): Promise<AntigravityInstance> {
-  const targetPath = getTargetWorkspacePath();
+async function ensureAntigravityForWorkspace(
+  workspaceOverride?: string,
+): Promise<AntigravityInstance> {
+  const targetPath = workspaceOverride?.trim()
+    ? path.resolve(workspaceOverride.trim())
+    : getTargetWorkspacePath();
   const instances = discoverRawInstances();
   const matched = findInstanceForTargetWorkspace(instances, targetPath);
 
@@ -266,14 +271,16 @@ async function ensureAntigravityForWorkspace(): Promise<AntigravityInstance> {
   return waitForTargetInstance(targetPath);
 }
 
-export async function resolveInstance(): Promise<AntigravityInstance> {
+export async function resolveInstance(
+  workspaceOverride?: string,
+): Promise<AntigravityInstance> {
   const envRaw = rawInstanceFromEnv();
   if (envRaw) {
     const { portOverride, ...rest } = envRaw;
     return { ...rest, port: portOverride };
   }
 
-  return ensureAntigravityForWorkspace();
+  return ensureAntigravityForWorkspace(workspaceOverride);
 }
 
 export function listDiscoveredInstances(): AntigravityInstance[] {

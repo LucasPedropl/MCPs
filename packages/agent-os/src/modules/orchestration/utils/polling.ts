@@ -1,6 +1,7 @@
 import type { CascadeStep } from "../client/types.js";
 import type { AntigravityClient } from "../client/antigravity-client.js";
 import type { GetCascadeTrajectoryStepsResponse, PollOptions } from "../client/types.js";
+import { isAwaitingPlanApproval } from "./plan-approval.js";
 
 const DEFAULT_INTERVAL_MS = 500;
 const DEFAULT_TIMEOUT_MS = 120_000;
@@ -16,6 +17,7 @@ export interface PollResult {
   model?: string;
   messageId?: string;
   steps: CascadeStep[];
+  awaitingPlanApproval?: boolean;
 }
 
 export async function pollForResponse(
@@ -75,6 +77,7 @@ export async function pollForResponse(
           model: plannerStep?.metadata?.generatorModel,
           messageId: plannerStep?.plannerResponse?.messageId,
           steps,
+          awaitingPlanApproval: isAwaitingPlanApproval(responseText),
         };
       }
     }

@@ -30,6 +30,7 @@ delegação multi-IDE, hub Supabase multi-conta e hub lazy de MCPs externos.
 | Consultar skill/playbook | \`resolve_skills\` / \`playbook\` (action=get) |
 | Ver/editar portfólio de projetos | \`list_agent_projects\` / \`upsert_project\` / \`sync_project\` |
 | Validar código ao final | \`run_quality_gates\` → \`run_autofix_loop\` se falhar |
+| Detalhes de uma tool (doc completa) | \`get_usage_guide\` tool_name=... |
 
 ## Limitações conhecidas (leia antes de confiar)
 
@@ -54,4 +55,15 @@ delegação multi-IDE, hub Supabase multi-conta e hub lazy de MCPs externos.
 - **policy**: upsert_policy, check_policy, policy_admin
 - **projects**: registry/portfólio (agent_projects)
 - **runner**: quality gates, autofix, diff, rollback
+
+## Envs de eficiência de tokens
+
+- \`AGENT_OS_MCP_RESULT_MAX_CHARS\` (default 25000): cap de chars nos resultados
+  de call_mcp_tool/call_supabase_tool, com marcador TRUNCATED; <=0 desliga.
+  Por chamada: param max_chars.
+- \`AGENT_OS_TOOL_DOCS\` (compact|full, default compact): descrições compactas
+  no tools/list; doc completa sob demanda via get_usage_guide tool_name=...
+- \`AGENT_OS_TOOLS_ALLOW\` / \`AGENT_OS_TOOLS_DENY\` (csv, default unset): filtro
+  de superfície de tools por cliente; agent_os_status e get_usage_guide nunca
+  são ocultadas.
 `;

@@ -2,10 +2,80 @@
  * Documentação central das tools do Agent OS (módulos não-orchestration).
  * Formato padrão: resumo em 1 linha + WHEN TO USE / WHEN NOT / RETURNS / NOTES.
  * Orchestration mantém docs próprias em modules/orchestration/tools/tool-docs.ts.
+ *
+ * Em modo compact (default, env AGENT_OS_TOOL_DOCS) o cliente recebe só
+ * resumo+RETURNS; doc completa fica sob demanda via get_usage_guide tool_name=...
  */
+import { compactToolDoc } from "@mcps/shared";
+import { getToolDocsMode } from "../config/env.js";
+import { TOOL_DESCRIPTIONS as ORCHESTRATION_TOOL_DOCS } from "../modules/orchestration/tools/tool-docs.js";
+
 export function describeAgentTool(name: string, fallback?: string): string {
-	return AGENT_TOOL_DOCS[name] ?? fallback ?? name;
+	const full = AGENT_TOOL_DOCS[name];
+	if (!full) {
+		return fallback ?? name;
+	}
+	if (getToolDocsMode() === "full") {
+		return full;
+	}
+	return COMPACT_TOOL_DOC_OVERRIDES[name] ?? compactToolDoc(full);
 }
+
+/** Doc completa (WHEN TO USE/WHEN NOT/RETURNS/PARAMS/NOTES) para lookup sob demanda. */
+export function getFullToolDoc(name: string): string | null {
+	return AGENT_TOOL_DOCS[name] ?? ORCHESTRATION_TOOL_DOCS[name] ?? null;
+}
+
+/**
+ * Overrides compactos escritos à mão para pares confundíveis: o contraste do
+ * WHEN NOT migra para a linha-resumo para não perder precisão de ativação.
+ */
+export const COMPACT_TOOL_DOC_OVERRIDES: Record<string, string> = {
+	call_supabase_tool: `Chama qualquer tool do MCP Supabase oficial no projeto ativo (execute_sql, list_tables, apply_migration, get_logs...). Para MCPs externos do hub (GitHub/Vercel/OpenAPI) use call_mcp_tool. Exige switch_project antes.
+RETURNS: Resultado do MCP oficial Supabase (cap de chars com marcador TRUNCATED; max_chars ajusta).`,
+
+	call_mcp_tool: `Executa tool de MCP externo registrado no hub lazy (GitHub, Vercel, OpenAPI custom) por alias. Para o banco Supabase do projeto ativo use call_supabase_tool.
+RETURNS: Resultado da tool filha (cap de chars com marcador TRUNCATED; max_chars ajusta).`,
+
+	remember: `Salva memória persistente: kind=preference|decision|pitfall|task_log. Para regra de projeto com enforcement use set_project_rule.
+RETURNS: Registro salvo com id.`,
+
+	set_project_rule: `Define regra de projeto em UMA chamada: preferência project-scoped + policy deny opcional (enforce=true). Para preferência/decisão/pitfall solto use remember.
+RETURNS: { preference, policy?, applied_via }`,
+
+	recall_for_task: `Recupera memória relevante (preferências + decisões + pitfalls) rankeada pela intenção. Para o pacote completo com skills e budget de tokens use assemble_context.
+RETURNS: { preferences[], decisions[], pitfalls[] } slim por padrão; raw=true para rows completas.`,
+
+	assemble_context: `Monta pacote mínimo de contexto (regras, decisões, pitfalls, skills, bundle) sob budget de tokens — início de QUALQUER tarefa complexa. Para consulta rápida só de memória use recall_for_task.
+RETURNS: { preferences, decisions, pitfalls, skills, playbooks, suggested_tools, suggested_provider, token_estimate, snapshot, diff }`,
+
+	resolve_skills: `Resolve skills relevantes para uma intenção (ranking por score; score 0 fica de fora). Para conteúdo completo de skill conhecida use get_skill.
+RETURNS: { skills: [{name, description, version, scope, score}], hint } — sem content_md por default (include_content=true para completo).`,
+
+	get_skill: `Retorna skill completa (content_md) por nome exato. Para descobrir skill por intenção use resolve_skills.
+RETURNS: SkillRecord | null`,
+
+	list_projects: `Lista projetos Supabase em cache do hub — descobrir projectRef antes de switch_project. Para o portfólio agent_projects use list_agent_projects.
+RETURNS: { count, projects[] }`,
+
+	list_agent_projects: `Lista projetos do registry agent_projects (portfólio + perfis de workspace). Para projetos Supabase do hub use list_projects.
+RETURNS: Projetos com slug, título, workspace_path, stack, status.`,
+
+	hub_status: `Visão geral do hub Supabase: contas, projetos, contexto ativo, keep-alive, scheduler. Para status do Agent OS em si use agent_os_status.
+RETURNS: { accounts, projects, activeContext, keepAlive, scheduler }`,
+
+	agent_os_status: `Status geral do Agent OS: versão, workspace, Supabase, módulos, tool docs mode. Para o hub Supabase (contas/projetos) use hub_status.
+RETURNS: { name, version, configDir, enabledModules, supabase, workspace, toolDocsMode, mcpResultMaxChars, hiddenTools }`,
+
+	connect_mcp: `Registra conexão MCP nova (stdio/http/openapi) com config custom manual. Para presets comuns ou servidores do registry use install_mcp.
+RETURNS: Conexão registrada.`,
+
+	install_mcp: `Instalação/registro em lote de MCPs no hub: mode=presets|registry_all|openapi_new|openapi_sync. Para conexão manual custom use connect_mcp.
+RETURNS: Relatório de instalação/sync com alias de uso.`,
+
+	switch_project: `Alterna conta/projeto Supabase ativo. OBRIGATÓRIO antes de operar o banco. Confirme com get_active_project.
+RETURNS: { success, activeContext }`,
+};
 
 export const AGENT_TOOL_DOCS: Record<string, string> = {
 	// ── core ────────────────────────────────────────────────────────────────
@@ -84,10 +154,11 @@ PARAMS: intent, workspace_path, host?, token_budget?(default 8000), use_cache?
 
 	// ── knowledge ───────────────────────────────────────────────────────────
 	resolve_skills: `
-Resolve skills relevantes para uma intenção (ranking por overlap de tokens).
+Resolve skills relevantes para uma intenção (ranking por overlap de tokens; score 0 fica de fora).
 WHEN TO USE: Descobrir qual skill seguir antes de uma tarefa específica.
 WHEN NOT: Para conteúdo completo de skill conhecida (use get_skill).
-RETURNS: SkillRecord[] com content_md.
+RETURNS: { skills: [{name, description, version, scope, score}], hint }. include_content=true devolve content_md completo.
+PARAMS: intent, workspace_path?, limit?, include_content?, min_score? (default 1; 0 restaura comportamento antigo).
 `.trim(),
 
 	get_skill: `
@@ -109,7 +180,7 @@ PARAMS: direction(from_repo|to_host), skills_root? (from_repo), workspace_path (
 Administração do registry de skills: listar, criar/atualizar, deletar, vincular a projeto.
 WHEN TO USE: action=list|upsert|delete|bind_to_project.
 WHEN NOT: Para resolver skills por intenção (use resolve_skills).
-RETURNS: Lista, registro salvo ou { ok: true }.
+RETURNS: Lista (default só name/description/content_chars; include_content=true traz content_md), registro salvo ou { ok: true }.
 `.trim(),
 
 	playbook: `
@@ -125,8 +196,8 @@ PARAMS: action(get|list|update|delete|detect_drift), alias?, content_md?, id?, i
 Lista MCPs registrados no hub lazy (GitHub, Vercel, OpenAPI custom, etc).
 WHEN TO USE: Descobrir aliases disponíveis antes de call_mcp_tool.
 WHEN NOT: Para tools de um MCP específico (use list_mcp_tools).
-RETURNS: Resumo por alias (latest_version_at, version_count). Use include_config/include_tool_cache para modo verbose.
-PARAMS: include_config?, include_tool_cache?
+RETURNS: { total, connected: [{id, alias, transport, status, toolCount, last_health_at}], disconnected: [alias...], hint }
+PARAMS: include_tool_names? (cap 25), include_disconnected? (objetos completos), include_config?, include_tool_cache?
 `.trim(),
 
 	connect_mcp: `
@@ -334,10 +405,8 @@ PARAMS: target(github|vercel|docs|cover), id?/slug?, save?, file_path?, base64?,
 	// ── orchestration extensions ────────────────────────────────────────────
 	route_for_pedro: `
 Sugere provider ideal (cursor/antigravity) para a intenção, usando as regras pessoais do Pedro.
-WHEN TO USE: Antes de delegate_task quando não souber qual provider usar.
-RETURNS: { provider, rationale, matched_rule, confidence }
 WHEN TO USE: Escolher para quem delegar antes de delegate_task/delegate_async.
-RETURNS: { provider, rationale }
+RETURNS: { provider, rationale, matched_rule, confidence }
 `.trim(),
 
 	handoff_session: `

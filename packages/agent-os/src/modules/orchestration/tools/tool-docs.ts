@@ -1,12 +1,50 @@
-/** Retorna description enriquecida ou fallback. */
+import { compactToolDoc } from "@mcps/shared";
+import { getToolDocsMode } from "../../../config/env.js";
+
+/**
+ * Retorna description enriquecida ou fallback. Em modo compact (default,
+ * env AGENT_OS_TOOL_DOCS) devolve resumo+RETURNS; doc completa via
+ * get_usage_guide tool_name=...
+ */
 export function describeTool(name: string, fallback?: string): string {
-  return TOOL_DESCRIPTIONS[name] ?? fallback ?? name;
+  const full = TOOL_DESCRIPTIONS[name];
+  if (!full) {
+    return fallback ?? name;
+  }
+  if (getToolDocsMode() === "full") {
+    return full;
+  }
+  return COMPACT_TOOL_DESCRIPTION_OVERRIDES[name] ?? compactToolDoc(full);
 }
+
+/**
+ * Overrides compactos à mão para as tools de delegação confundíveis:
+ * o contraste do WHEN NOT vive na linha-resumo.
+ */
+export const COMPACT_TOOL_DESCRIPTION_OVERRIDES: Record<string, string> = {
+  delegate_task: `Synchronous delegation with FULL JSON metadata (merge, isolatedBranch, sessionId). For plain-text-only answers use delegate_and_wait; for tasks >2min use delegate_async.
+RETURNS: { success, provider, mode, response, isolatedBranch?, merge?, sessionId?, cascadeId?, awaiting_plan_approval?, attemptedProviders? }`,
+
+  delegate_and_wait: `Quick synchronous delegation returning ONLY the response text (no JSON wrapper). For merge/worktree metadata use delegate_task; for long/background tasks use delegate_async.
+RETURNS: Plain text string (response body only)`,
+
+  delegate_async: `Long or background delegation — returns job_id immediately, poll with get_job_status. REQUIRES Supabase. For synchronous results use delegate_task or delegate_and_wait.
+RETURNS: { success, jobId, status, provider, workspace, message }`,
+
+  run_pipeline: `Full autonomous workflow: plan→implement→review→fix with validation and review-fix loops. For trivial changes or simple questions use delegate_task/delegate_and_wait.
+RETURNS: { success, jobId/pipelineId, status } (async default) or full pipeline result (async=false)`,
+
+  get_job_status: `Poll async job by job_id — wait 3-10s between calls and check isTerminal. For provider/quota health use bridge_status.
+RETURNS: { success, job, events[], isTerminal }`,
+
+  bridge_status: `Health check: providers (Cursor + Antigravity), Supabase, quotas, workspace, circuit breaker. For a specific job use get_job_status; for a pipeline use get_pipeline_status.
+RETURNS: Resumo enxuto por padrão. verbose=true inclui antigravityHealth raw.`,
+};
 
 export const BRIDGE_INSTRUCTIONS = `
 # IDE Bridge MCP v1.0 — Agent Instructions
 
-You orchestrate coding tasks by delegating to Antigravity, Cursor CLI, or Copilot CLI.
+You orchestrate coding tasks by delegating to Antigravity or Cursor CLI.
 Always call \`get_usage_guide\` or \`bridge_status\` first in a new workspace to confirm target path and provider health.
 
 ## Workspace resolution (priority order)
@@ -26,6 +64,12 @@ Per-project setup: use \`"BRIDGE_DEFAULT_CWD": "\${workspaceFolder}"\` in .curso
 - **true**: provider may edit files. Creates isolated git worktree + auto-merge on success.
   Use only when you intend code changes. Test with agentic_mode=false first in new projects.
 
+## Antigravity Plan Mode
+- Default \`planner_mode=off\` (\`PLANNING_OFF\`) — Antigravity executes without asking for plan confirmation.
+- Override with \`planner_mode=on\` or env \`BRIDGE_ANTIGRAVITY_PLANNER_MODE=on|off|default\`.
+- If response has \`awaiting_plan_approval=true\`: use \`create_session\` (or existing session) then
+  \`continue_session({ approve_plan: true })\` to implement, or \`reject_plan: true\` to stop.
+
 ## Decision tree — which tool?
 | Need | Tool |
 |------|------|
@@ -36,13 +80,13 @@ Per-project setup: use \`"BRIDGE_DEFAULT_CWD": "\${workspaceFolder}"\` in .curso
 | Same prompt, multiple providers | \`delegate_parallel\` |
 | Smart provider pick | \`route_prompt\` |
 | Multi-turn context | \`create_session\` → \`continue_session\` |
+| Approve Antigravity plan | \`continue_session\` + \`approve_plan=true\` |
 
 ## Prerequisites
 - **delegate_async / run_pipeline / sessions**: Supabase (\`BRIDGE_SUPABASE_KEY\` in mcp.json)
 - **HITL approval**: \`BRIDGE_HITL_ENABLED=1\`
 - **Realtime worker**: \`BRIDGE_REALTIME_WORKER=1\`
 - **Cursor provider**: \`agent login\` must work
-- **Copilot**: student/light plan — use \`gpt-5.2\` or \`auto\` only
 
 ## Quota pools (Antigravity)
 - **gemini**: Gemini Flash/Pro models — separate reset cycle
@@ -52,7 +96,7 @@ Per-project setup: use \`"BRIDGE_DEFAULT_CWD": "\${workspaceFolder}"\` in .curso
 - Default \`BRIDGE_DELEGATION_LANG=en\` — orchestrator ↔ Antigravity in English (~15–25% fewer tokens vs PT).
 - Write delegation prompts in English when calling \`delegate_task\` / \`delegate_async\`.
 - Pipeline step prompts auto-switch EN/PT. Set \`BRIDGE_DELEGATION_LANG=pt\` to disable EN prefix.
-- Optional \`BRIDGE_DELEGATION_LANG_ALL=1\` applies EN prefix to Cursor/Copilot too.
+- Optional \`BRIDGE_DELEGATION_LANG_ALL=1\` applies EN prefix to Cursor too.
 
 ## Safety
 - Verify \`bridge_status.targetWorkspace\` matches your project before agentic_mode=true
@@ -86,16 +130,16 @@ NOTES: Antigravity shows quotaRemaining per model.
   delegate_task: `
 WHEN TO USE: Synchronous delegation with FULL JSON response (success, merge, isolatedBranch, sessionId, cascadeId).
 WHEN NOT: When you only need plain text (use delegate_and_wait). For long tasks >2min (use delegate_async).
-RETURNS: { success, provider, mode, response, isolatedBranch?, merge?, sessionId?, cascadeId?, attemptedProviders? }
-PARAMS: provider, prompt, model?, mode(subagent|bridge), agentic_mode, workspace_path?, timeout_ms
-NOTES: Uses fallback chain if primary provider fails. agentic_mode=true creates worktree isolation.
+RETURNS: { success, provider, mode, response, isolatedBranch?, merge?, sessionId?, cascadeId?, awaiting_plan_approval?, attemptedProviders? }
+PARAMS: provider, prompt, model?, mode(subagent|bridge), agentic_mode, planner_mode?, workspace_path?, timeout_ms
+NOTES: Uses fallback chain if primary provider fails. agentic_mode=true creates worktree isolation. Default planner_mode=off (PLANNING_OFF). If awaiting_plan_approval, use create_session + continue_session(approve_plan=true).
 `.trim(),
 
   delegate_and_wait: `
 WHEN TO USE: Quick synchronous task — returns ONLY the response text (no JSON wrapper).
 WHEN NOT: When you need merge/worktree metadata. For tasks >2min or fire-and-forget.
 RETURNS: Plain text string (response body only)
-PARAMS: provider(default antigravity), prompt, model?, mode(subagent|bridge), agentic_mode, workspace_path?, timeout_ms
+PARAMS: provider(default antigravity), prompt, model?, mode(subagent|bridge), agentic_mode, planner_mode?, workspace_path?, timeout_ms
 NOTES: Simplest delegation. Errors return as error text with isError flag.
 `.trim(),
 
@@ -140,15 +184,17 @@ PARAMS: action(dlq|metrics|approve|store_status), job_id?, approved?, comment?, 
   create_session: `
 WHEN TO USE: Start persistent multi-turn session with a provider (optional, not required for delegation).
 WHEN NOT: For one-shot tasks — use delegate_task directly.
-RETURNS: { success, sessionId, provider, externalSessionId, response }
-PARAMS: provider, prompt, title?, model?, agentic_mode, workspace_path?, timeout_ms
-NOTES: Sessions are scoped to workspace. Use continue_session for follow-ups.
+RETURNS: { success, sessionId, provider, externalSessionId, cascadeId?, response, awaiting_plan_approval? }
+PARAMS: provider, prompt, title?, model?, agentic_mode, planner_mode?, workspace_path?, timeout_ms
+NOTES: Sessions are scoped to workspace. Use continue_session for follow-ups / plan approval.
 `.trim(),
 
   continue_session: `
-WHEN TO USE: Send follow-up prompt to existing session with optional context pack injection.
+WHEN TO USE: Send follow-up prompt to existing session; or approve/reject Antigravity plan (approve_plan / reject_plan).
 WHEN NOT: Without valid session_id from create_session.
-RETURNS: { success, sessionId, response, contextUsed? }
+RETURNS: { success, session, response, resumedNative, awaiting_plan_approval?, plan_action? }
+PARAMS: session_id, prompt?, model?, agentic_mode, planner_mode?, approve_plan?, reject_plan?, timeout_ms, include_context_pack
+NOTES: approve_plan=true sends fixed EN approval on the same cascade with PLANNING_OFF + agentic. prompt optional when approve/reject set.
 `.trim(),
 
   session_admin: `
@@ -164,7 +210,7 @@ WHEN TO USE: Full autonomous workflow: plan→implement→review→fix with Zod 
 WHEN NOT: Trivial one-line changes or simple questions.
 RETURNS: { success, jobId/pipelineId, status } (async default) or full pipeline result (async=false)
 PARAMS: task, steps?, step_roles?, timeout_ms, async(default true), workspace_path?
-NOTES: Default steps use Antigravity/Cursor/Copilot. Cursor fallback if unavailable. Requires Supabase for async.
+NOTES: Default steps use Antigravity/Cursor. Cursor fallback if unavailable. Requires Supabase for async.
 `.trim(),
 
   resume_pipeline: `
@@ -220,6 +266,9 @@ export const IDEMPOTENCY_KEY_DESC =
 
 export const AGENTIC_MODE_DESC =
   "true = provider pode editar arquivos (worktree isolation + auto-merge). false = chat/read-only.";
+
+export const PLANNER_MODE_DESC =
+  "Antigravity only: off=PLANNING_OFF (default, executa sem pedir confirmação), on=PLANNING_ON, default=DEFAULT. Env: BRIDGE_ANTIGRAVITY_PLANNER_MODE.";
 
 export const MODE_DESC =
   "subagent = background sem UI. bridge = chat visível no Antigravity (só antigravity).";
