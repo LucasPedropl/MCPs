@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { jsonText } from "@mcps/shared";
 import { z } from "zod";
 import {
   handleGitHubWebhook,
@@ -16,14 +17,8 @@ import {
 import { isSupabaseConfigured } from "../features/jobs/supabase-client.js";
 import { describeTool, AGENTIC_MODE_DESC, WORKSPACE_PATH_DESC } from "./tool-docs.js";
 
-function jsonContent(data: Record<string, unknown>) {
-  return {
-    content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
-  };
-}
-
 function errorContent(message: string) {
-  return { ...jsonContent({ success: false, message }), isError: true };
+  return { ...jsonText({ success: false, message }), isError: true };
 }
 
 /** Constrói payload simulado para testes via MCP tool. */
@@ -104,7 +99,7 @@ async function handleWebhooks(args: WebhooksArgs) {
       timeoutMs: args.timeout_ms,
       workspacePath: args.workspace_path,
     });
-    return jsonContent({
+    return jsonText({
       success: true,
       jobId: result.jobId,
       prompt: result.prompt,
@@ -120,18 +115,18 @@ async function handleWebhooks(args: WebhooksArgs) {
       return errorContent("Supabase não configurado — worker não pode iniciar");
     }
     const started = startRealtimeWorker();
-    return jsonContent({ action: "worker_start", started, ...getRealtimeWorkerStatus() });
+    return jsonText({ action: "worker_start", started, ...getRealtimeWorkerStatus() });
   }
 
   if (args.action === "worker_stop") {
     const wasRunning = isRealtimeWorkerRunning();
     stopRealtimeWorker();
-    return jsonContent({ action: "worker_stop", stopped: wasRunning, running: false });
+    return jsonText({ action: "worker_stop", stopped: wasRunning, running: false });
   }
 
   if (args.action === "worker_status") {
     const status = getRealtimeWorkerStatus();
-    return jsonContent({
+    return jsonText({
       action: "worker_status",
       ...status,
       webhookSecretConfigured: Boolean(getWebhookSecret()),
@@ -144,13 +139,13 @@ async function handleWebhooks(args: WebhooksArgs) {
   }
   const secret = getWebhookSecret();
   if (!secret) {
-    return jsonContent({
+    return jsonText({
       valid: false,
       message: "BRIDGE_GITHUB_WEBHOOK_SECRET não definido no ambiente",
     });
   }
   const valid = verifyGitHubSignature(args.payload, args.signature, secret);
-  return jsonContent({ valid, message: valid ? "Assinatura válida" : "Assinatura inválida" });
+  return jsonText({ valid, message: valid ? "Assinatura válida" : "Assinatura inválida" });
 }
 
 /** Registra tool unificada de webhooks e realtime worker. */

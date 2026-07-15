@@ -60,6 +60,43 @@ async function createRemoteClient(
   return client;
 }
 
+// Cache do client remoto: criar/fechar uma conexão StreamableHTTP por chamada
+// custava um handshake inteiro a cada tool call.
+let cachedProxy: { key: string; client: Client; lastUsedAt: number } | null = null;
+const PROXY_IDLE_MS = 5 * 60 * 1000;
+
+async function invalidateProxyClient(): Promise<void> {
+  if (!cachedProxy) {
+    return;
+  }
+  const { client } = cachedProxy;
+  cachedProxy = null;
+  await client.close().catch(() => undefined);
+}
+
+async function getRemoteClient(
+  pat: string,
+  projectRef: string,
+  readOnly: boolean,
+): Promise<Client> {
+  const key = `${projectRef}:${readOnly}:${pat.slice(-8)}`;
+  if (cachedProxy?.key === key) {
+    cachedProxy.lastUsedAt = Date.now();
+    return cachedProxy.client;
+  }
+
+  await invalidateProxyClient();
+  const client = await createRemoteClient(pat, projectRef, readOnly);
+  cachedProxy = { key, client, lastUsedAt: Date.now() };
+  return client;
+}
+
+setInterval(() => {
+  if (cachedProxy && Date.now() - cachedProxy.lastUsedAt > PROXY_IDLE_MS) {
+    void invalidateProxyClient();
+  }
+}, 60_000).unref();
+
 export async function getActiveCredentials(): Promise<{
   pat: string;
   projectRef: string;
@@ -90,27 +127,25 @@ export async function callSupabaseTool(
   args: Record<string, unknown>,
 ): Promise<unknown> {
   const { pat, projectRef, readOnly } = await getActiveCredentials();
-  const client = await createRemoteClient(pat, projectRef, readOnly);
 
   try {
-    const result = await client.callTool(
-      { name: toolName, arguments: args },
-      CallToolResultSchema,
-    );
-    return result;
-  } finally {
-    await client.close();
+    const client = await getRemoteClient(pat, projectRef, readOnly);
+    return await client.callTool({ name: toolName, arguments: args }, CallToolResultSchema);
+  } catch (firstError) {
+    // Conexão cacheada pode ter expirado — reconecta uma vez antes de falhar.
+    await invalidateProxyClient();
+    try {
+      const client = await getRemoteClient(pat, projectRef, readOnly);
+      return await client.callTool({ name: toolName, arguments: args }, CallToolResultSchema);
+    } catch {
+      throw firstError;
+    }
   }
 }
 
 export async function listRemoteTools(): Promise<string[]> {
   const { pat, projectRef, readOnly } = await getActiveCredentials();
-  const client = await createRemoteClient(pat, projectRef, readOnly);
-
-  try {
-    const listed = await client.listTools();
-    return listed.tools.map((tool) => tool.name);
-  } finally {
-    await client.close();
-  }
+  const client = await getRemoteClient(pat, projectRef, readOnly);
+  const listed = await client.listTools();
+  return listed.tools.map((tool) => tool.name);
 }

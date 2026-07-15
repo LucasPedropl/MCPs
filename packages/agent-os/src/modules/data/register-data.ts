@@ -8,19 +8,10 @@ import { registerUnifiedHubTools } from "./tools/hub-tools-unified.js";
 import { describeAgentTool } from "../../tools/tool-docs.js";
 import { parseListTablesResult, rankTablesByIntent, type SchemaHint } from "./schema-parser.js";
 
-const FALLBACK_TABLES = [
-  "agent_preferences",
-  "agent_decisions",
-  "agent_skills",
-  "delegation_jobs",
-  "mcp_servers",
-  "mcp_tools",
-];
-
 async function resolveSchemaHints(intent: string, tableLimit: number): Promise<{
   activeProject: ActiveContext | null;
   schemaHints: SchemaHint[];
-  source: "list_tables" | "fallback";
+  source: "list_tables" | "unavailable";
   error?: string;
 }> {
   const config = await loadConfig();
@@ -30,7 +21,7 @@ async function resolveSchemaHints(intent: string, tableLimit: number): Promise<{
     return {
       activeProject: null,
       schemaHints: [],
-      source: "fallback",
+      source: "unavailable",
       error: "Nenhum projeto ativo. Use switch_project antes de schema_context_for_task.",
     };
   }
@@ -49,34 +40,24 @@ async function resolveSchemaHints(intent: string, tableLimit: number): Promise<{
       };
     }
 
-    console.warn(
-      "[schema_context_for_task] list_tables retornou vazio — usando fallback estático.",
-    );
+    return {
+      activeProject: config.activeContext,
+      schemaHints: [],
+      source: "unavailable",
+      error:
+        "list_tables retornou vazio — o schema public do projeto ativo não tem tabelas visíveis.",
+    };
   } catch (error) {
+    // Sem lista de fallback: sugerir tabelas do meta-banco do agent-os aqui
+    // enganaria o modelo sobre o schema do projeto ATIVO do usuário.
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[schema_context_for_task] list_tables falhou: ${message}`);
+    return {
+      activeProject: config.activeContext,
+      schemaHints: [],
+      source: "unavailable",
+      error: `list_tables falhou: ${message}. Verifique credenciais do projeto ativo (switch_project).`,
+    };
   }
-
-  const keywords = intent
-    .toLowerCase()
-    .split(/\W+/)
-    .filter((token) => token.length > 3);
-
-  const matched = FALLBACK_TABLES.filter((table) =>
-    keywords.some((keyword) => table.includes(keyword)),
-  );
-
-  const tables = (matched.length > 0 ? matched : FALLBACK_TABLES).slice(0, limit);
-
-  return {
-    activeProject: config.activeContext,
-    schemaHints: tables.map((table) => ({
-      table,
-      columns: [],
-      note: "Fallback estático — use switch_project + list_tables para detalhes.",
-    })),
-    source: "fallback",
-  };
 }
 
 export function registerDataTools(server: McpServer): void {

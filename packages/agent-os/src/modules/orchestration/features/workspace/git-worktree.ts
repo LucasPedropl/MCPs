@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { agentOsEnv } from "../../../../config/env.js";
 import type { BridgeProvider } from "../../client/types.js";
 import { runGit } from "./git-utils.js";
 
@@ -26,7 +27,7 @@ function getCurrentBranch(workspace: string): string {
 
 /** Isolamento por worktree habilitado por padrão em delegações agentic. */
 export function isWorktreeIsolationEnabled(): boolean {
-  const raw = process.env["BRIDGE_ISOLATE_WORKSPACE"];
+  const raw = agentOsEnv("ISOLATE_WORKSPACE");
   if (raw === undefined || raw === "") {
     return true;
   }

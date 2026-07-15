@@ -24,3 +24,5 @@ export {
 } from "./mcp-response.js";
 
 export { compactToolDoc } from "./tool-docs-util.js";
+
+export { killProcessTree, toPosix } from "./process-utils.js";

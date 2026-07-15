@@ -1,7 +1,12 @@
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentHost, AssembledContext, BridgeProvider } from "@mcps/shared";
+import {
+  estimateTokens,
+  type AgentHost,
+  type AssembledContext,
+  type BridgeProvider,
+} from "@mcps/shared";
 import { getAgentOsConfigDir } from "../../config/env.js";
 import { recallMemory } from "../memory/memory-store.js";
 import { slimMemoryRecall } from "../memory/memory-slim.js";
@@ -10,8 +15,13 @@ import { resolveSkills } from "../knowledge/knowledge-store.js";
 
 const CHARS_PER_TOKEN = 4;
 
-function estimateTokens(text: string): number {
-  return Math.ceil(text.length / CHARS_PER_TOKEN);
+/** TTL do cache de contexto — sem ele, regras novas nunca chegam ao modelo. */
+const DEFAULT_CACHE_TTL_MS = 5 * 60 * 1000;
+
+function getCacheTtlMs(): number {
+  const raw = process.env["AGENT_OS_CONTEXT_CACHE_TTL_MS"];
+  const parsed = raw ? Number.parseInt(raw, 10) : NaN;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_CACHE_TTL_MS;
 }
 
 function chunkText(content: string, maxChars: number): string {
@@ -36,9 +46,24 @@ function readCache(workspace: string, intent: string): AssembledContext | null {
   }
 
   try {
+    const ageMs = Date.now() - fs.statSync(filePath).mtimeMs;
+    if (ageMs > getCacheTtlMs()) {
+      fs.rmSync(filePath, { force: true });
+      return null;
+    }
     return JSON.parse(fs.readFileSync(filePath, "utf8")) as AssembledContext;
   } catch {
     return null;
+  }
+}
+
+/** Invalida o cache de contexto — chamar ao gravar regra/preferência nova. */
+export function invalidateContextCache(): void {
+  const cacheDir = path.join(getAgentOsConfigDir(), "cache", "context");
+  try {
+    fs.rmSync(cacheDir, { recursive: true, force: true });
+  } catch {
+    // cache pode não existir
   }
 }
 
@@ -83,10 +108,8 @@ export async function assembleContext(input: {
     }
   }
 
-  const memoryBudget = Math.floor(budget * 0.3);
   const skillsBudget = Math.floor(budget * 0.4);
-  const schemaBudget = Math.floor(budget * 0.2);
-  const playbookBudget = budget - memoryBudget - skillsBudget - schemaBudget;
+  const playbookBudget = Math.floor(budget * 0.1);
 
   const memory = await recallMemory({
     intent: input.intent,
@@ -112,9 +135,15 @@ export async function assembleContext(input: {
   const decisions = slimMemory.decisions;
   const pitfalls = slimMemory.pitfalls;
 
+  // Budget DIVIDIDO entre as skills — aplicá-lo por skill multiplicaria o
+  // orçamento por N.
+  const perSkillChars =
+    skills.length > 0
+      ? Math.floor((skillsBudget * CHARS_PER_TOKEN) / skills.length)
+      : 0;
   const skillChunks = skills.map((skill) => ({
     name: skill.name,
-    chunk: chunkText(skill.content_md, skillsBudget * CHARS_PER_TOKEN),
+    chunk: chunkText(skill.content_md, perSkillChars),
   }));
 
   const playbookChunks: Array<{ server: string; chunk: string }> = [];
@@ -157,7 +186,7 @@ export async function assembleContext(input: {
   if (payload.token_estimate > budget) {
     payload.skills = payload.skills.map((skill) => ({
       ...skill,
-      chunk: chunkText(skill.chunk, Math.floor((skillsBudget * CHARS_PER_TOKEN) / 2)),
+      chunk: chunkText(skill.chunk, Math.max(Math.floor(perSkillChars / 2), 200)),
     }));
     payload.token_estimate = estimateTokens(JSON.stringify(payload));
   }

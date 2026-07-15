@@ -17,6 +17,7 @@ import {
   upsertPreference,
 } from "../modules/memory/memory-store.js";
 import { slimMemoryRecall } from "../modules/memory/memory-slim.js";
+import { invalidateContextCache } from "../modules/context/context-assembler.js";
 import { importRulesFromWorkspace, seedPedroPreferences } from "../modules/memory/memory-seed.js";
 import { isSupabaseConfigured } from "../features/supabase-client.js";
 import { describeAgentTool } from "./tool-docs.js";
@@ -48,6 +49,9 @@ type RememberArgs = {
 };
 
 async function handleRemember(args: RememberArgs) {
+  // Memória nova deve aparecer no próximo assemble_context, não após o TTL.
+  invalidateContextCache();
+
   if (args.kind === "preference") {
     if (!args.key || !args.value) {
       return errorText("kind=preference exige 'key' e 'value'.");

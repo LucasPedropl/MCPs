@@ -6,12 +6,12 @@ import { resolveWorkspacePath } from "../client/workspace-resolve.js";
 import {
   finalizeDelegationWorkspace,
   isAutoMergeEnabled,
+  preserveDelegationWorkspace,
   type MergeDelegationResult,
 } from "../features/workspace/git-merge.js";
 import {
   isWorktreeIsolationEnabled,
   prepareDelegationWorkspace,
-  releaseDelegationWorkspace,
   type DelegationWorkspace,
 } from "../features/workspace/git-worktree.js";
 import { delegateToAntigravity } from "../providers/antigravity/service.js";
@@ -41,6 +41,8 @@ export interface DelegateParams {
   session_id?: string;
   workspace_path?: string;
   on_chunk?: ChunkHandler;
+  /** Cancelamento real: mata o processo do provider / interrompe o polling. */
+  signal?: AbortSignal;
 }
 
 export type DelegationSuccess = {
@@ -97,8 +99,9 @@ function finalizeIsolatedWorkspace(
   if (success && isAutoMergeEnabled()) {
     return finalizeDelegationWorkspace(delegated);
   }
-  releaseDelegationWorkspace(delegated);
-  return undefined;
+  // Sem auto-merge (ou delegação falhou): commita na branch bridge/* e a
+  // preserva para revisão manual — nunca descarta o trabalho da delegação.
+  return preserveDelegationWorkspace(delegated);
 }
 
 function shouldUseWorktree(provider: BridgeProvider, agentic: boolean): boolean {
@@ -106,10 +109,12 @@ function shouldUseWorktree(provider: BridgeProvider, agentic: boolean): boolean 
     return false;
   }
   if (provider === "antigravity") {
-    if (isAntigravityParallelEnabled()) {
-      return true;
+    // Worktree só faz sentido com agy headless: o cascade da IDE edita o
+    // workspace principal, não o worktree. Sem agy, degrada para serializado.
+    if (!isHeadlessAvailable()) {
+      return false;
     }
-    return isHeadlessAntigravityEnabled() && isHeadlessAvailable();
+    return isAntigravityParallelEnabled() || isHeadlessAntigravityEnabled();
   }
   return provider === "cursor";
 }
@@ -160,7 +165,7 @@ export async function runDelegation(params: DelegateParams): Promise<DelegationR
   const run = async (): Promise<DelegationResult> => {
   try {
     if (mode === "parallel") {
-      releaseDelegationWorkspace(delegated);
+      preserveDelegationWorkspace(delegated);
       return {
         success: false,
         message: "Use delegate_parallel para delegação paralela (sync ou async).",
@@ -174,6 +179,7 @@ export async function runDelegation(params: DelegateParams): Promise<DelegationR
         timeoutMs: timeout_ms,
         workspacePath: delegated.path,
         onChunk: on_chunk,
+        signal: params.signal,
       });
       const merge = finalizeIsolatedWorkspace(delegated, true);
       return {
@@ -199,6 +205,7 @@ export async function runDelegation(params: DelegateParams): Promise<DelegationR
       agenticMode: agentic_mode,
       plannerMode: planner_mode,
       timeoutMs: timeout_ms,
+      signal: params.signal,
       workspacePath: delegated.isolated ? delegated.path : baseWorkspace,
       onProgress: emitProgress
         ? (partial) => {

@@ -153,11 +153,17 @@ export function registerUnifiedHubTools(server: McpServer): void {
         target: z.enum(["cursor", "antigravity"]).default("cursor"),
         mode: z.enum(["hub-only", "multi-project"]).default("hub-only"),
         agentOsDistPath: z.string().optional(),
+        include_secrets: z
+          .boolean()
+          .default(false)
+          .describe("Se true, embute a AGENT_OS_SUPABASE_KEY real no JSON (default: placeholder)"),
       }),
     },
-    async ({ target, mode, agentOsDistPath }) => {
+    async ({ target, mode, agentOsDistPath, include_secrets }) => {
       try {
-        return jsonText(await exportMcpConfig({ target, mode, agentOsDistPath }));
+        return jsonText(
+          await exportMcpConfig({ target, mode, agentOsDistPath, includeSecrets: include_secrets }),
+        );
       } catch (error) {
         return errorText(error instanceof Error ? error.message : String(error));
       }

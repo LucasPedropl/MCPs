@@ -12,7 +12,40 @@ interface ChildSession {
 }
 
 const sessions = new Map<string, ChildSession>();
+const pendingConnections = new Map<string, Promise<Client>>();
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+
+/** Segredos do próprio agent-os que MCPs filhos de terceiros não devem herdar. */
+const AGENT_OS_SECRET_ENV = /^(AGENT_OS_|BRIDGE_|SUPABASE_)[A-Z0-9_]*(KEY|TOKEN|SECRET)$/;
+
+function inheritedEnv(): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (typeof value !== "string" || AGENT_OS_SECRET_ENV.test(key)) {
+      continue;
+    }
+    env[key] = value;
+  }
+  return env;
+}
+
+/**
+ * Interpola `${VAR}` a partir do process.env. Retorna undefined se alguma VAR
+ * não existir — o caller deve DESCARTAR a entrada em vez de passar o literal
+ * `${VAR}` (que sobrescreveria a env real herdada pelo filho).
+ */
+function interpolateEnvValue(value: string): string | undefined {
+  let missing = false;
+  const resolved = value.replace(/\$\{([A-Za-z0-9_]+)\}/g, (_match, name: string) => {
+    const fromProcess = process.env[name];
+    if (fromProcess === undefined) {
+      missing = true;
+      return "";
+    }
+    return fromProcess;
+  });
+  return missing ? undefined : resolved;
+}
 
 function buildStdioTransport(config: Record<string, unknown>): StdioClientTransport {
   const command = String(config["command"] ?? "npx");
@@ -24,16 +57,24 @@ function buildStdioTransport(config: Record<string, unknown>): StdioClientTransp
   const rawEnv = config["env"];
   if (rawEnv && typeof rawEnv === "object") {
     for (const [key, value] of Object.entries(rawEnv as Record<string, unknown>)) {
-      if (typeof value === "string") {
-        env[key] = value;
+      if (typeof value !== "string") {
+        continue;
       }
+      const resolved = interpolateEnvValue(value);
+      if (resolved === undefined) {
+        console.error(
+          `[mcp-hub] env '${key}' ignorada: variável referenciada em '${value}' não está definida no ambiente.`,
+        );
+        continue;
+      }
+      env[key] = resolved;
     }
   }
 
   return new StdioClientTransport({
     command,
     args,
-    env: { ...(process.env as Record<string, string>), ...env },
+    env: { ...inheritedEnv(), ...env },
     cwd: typeof config["cwd"] === "string" ? config["cwd"] : undefined,
   });
 }
@@ -76,13 +117,7 @@ function buildTransport(connection: HubConnection): StdioClientTransport | SSECl
   return buildStdioTransport(connection.config_json);
 }
 
-async function connectChild(connection: HubConnection, retries = 2): Promise<Client> {
-  const existing = sessions.get(connection.alias);
-  if (existing) {
-    existing.lastUsedAt = Date.now();
-    return existing.client;
-  }
-
+async function doConnectChild(connection: HubConnection, retries: number): Promise<Client> {
   let lastError: unknown;
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     try {
@@ -110,6 +145,27 @@ async function connectChild(connection: HubConnection, retries = 2): Promise<Cli
   }
 
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
+async function connectChild(connection: HubConnection, retries = 2): Promise<Client> {
+  const existing = sessions.get(connection.alias);
+  if (existing) {
+    existing.lastUsedAt = Date.now();
+    return existing.client;
+  }
+
+  // Dedupe: chamadas concorrentes ao mesmo alias compartilham a mesma conexão
+  // em andamento em vez de spawnar dois filhos (e vazar um transport).
+  const pending = pendingConnections.get(connection.alias);
+  if (pending) {
+    return pending;
+  }
+
+  const promise = doConnectChild(connection, retries).finally(() => {
+    pendingConnections.delete(connection.alias);
+  });
+  pendingConnections.set(connection.alias, promise);
+  return promise;
 }
 
 export async function disconnectChild(alias: string): Promise<void> {

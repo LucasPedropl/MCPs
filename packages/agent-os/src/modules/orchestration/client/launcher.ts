@@ -1,13 +1,14 @@
 import { execSync, spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { agentOsEnv } from "../../../config/env.js";
 import { getTargetWorkspacePath } from "./workspace.js";
 
 const DEFAULT_LAUNCH_TIMEOUT_MS = 45_000;
 const POLL_INTERVAL_MS = 2_000;
 
 function isAutoLaunchEnabled(): boolean {
-  const value = process.env["BRIDGE_ANTIGRAVITY_AUTO_LAUNCH"];
+  const value = agentOsEnv("ANTIGRAVITY_AUTO_LAUNCH");
   if (value === undefined || value === "") {
     return true;
   }
@@ -15,7 +16,7 @@ function isAutoLaunchEnabled(): boolean {
 }
 
 function getLaunchTimeoutMs(): number {
-  const raw = process.env["BRIDGE_LAUNCH_TIMEOUT_MS"];
+  const raw = agentOsEnv("LAUNCH_TIMEOUT_MS");
   if (!raw) {
     return DEFAULT_LAUNCH_TIMEOUT_MS;
   }
@@ -49,7 +50,7 @@ function firstExistingPath(candidates: string[]): string | null {
  * Localiza o launcher do Antigravity (agy) ou o executável da IDE.
  */
 export function findAntigravityLauncher(): string | null {
-  const envLauncher = process.env["BRIDGE_ANTIGRAVITY_LAUNCHER"];
+  const envLauncher = agentOsEnv("ANTIGRAVITY_LAUNCHER");
   if (envLauncher?.trim() && fs.existsSync(envLauncher.trim())) {
     return envLauncher.trim();
   }

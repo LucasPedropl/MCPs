@@ -1,3 +1,4 @@
+import { agentOsEnv } from "../../../../config/env.js";
 import { appendJobEvent, updateJob } from "./job-store.js";
 import type { PipelineStepRole } from "../pipeline/types.js";
 
@@ -10,7 +11,7 @@ export interface AwaitingApprovalState {
 }
 
 export function isHitlEnabled(): boolean {
-  return process.env["BRIDGE_HITL_ENABLED"] === "1";
+  return agentOsEnv("HITL_ENABLED") === "1";
 }
 
 export function isAgenticRole(role: PipelineStepRole): boolean {

@@ -1,4 +1,5 @@
 import * as path from "node:path";
+import { toPosix } from "@mcps/shared";
 import {
   listDecisions,
   listPitfalls,
@@ -81,10 +82,6 @@ export async function buildSessionContext(workspace: string): Promise<Record<str
   );
 
   return { additional_context: lines.join("\n") };
-}
-
-function toPosix(text: string): string {
-  return text.replace(/\\/g, "/");
 }
 
 /** Gera candidatos de action write: para o arquivo (relativo e absoluto). */

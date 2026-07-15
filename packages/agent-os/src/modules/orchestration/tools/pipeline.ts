@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { jsonText } from "@mcps/shared";
 import { z } from "zod";
 import { resolveWorkspacePath } from "../client/workspace-resolve.js";
 import { enqueueJob, enqueuePipelineResume } from "../features/jobs/job-runner.js";
@@ -21,12 +22,6 @@ const stepSchema = z.object({
   model: z.string().optional(),
   agentic_mode: z.boolean().optional(),
 });
-
-function jsonContent(data: unknown) {
-  return {
-    content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
-  };
-}
 
 function requireSupabase() {
   if (!isSupabaseConfigured()) {
@@ -74,7 +69,7 @@ export function registerPipelineTools(server: McpServer): void {
 
         const denial = await guardDelegation(task, "run_pipeline:*");
         if (denial) {
-          return { ...jsonContent({ success: false, ...denial }), isError: true };
+          return { ...jsonText({ success: false, ...denial }), isError: true };
         }
 
         const resolvedSteps = resolveSteps(steps, step_roles);
@@ -86,7 +81,7 @@ export function registerPipelineTools(server: McpServer): void {
           await appendJobEvent(pipelineJobId, "created", { type: "pipeline", async: true });
           enqueueJob(pipelineJobId);
 
-          return jsonContent({
+          return jsonText({
             success: true,
             async: true,
             pipelineJobId,
@@ -98,14 +93,14 @@ export function registerPipelineTools(server: McpServer): void {
         const pipelineJobId = await createPipelineJob(workspace, input);
         const result = await executePipelineJob(pipelineJobId);
 
-        return jsonContent({
+        return jsonText({
           success: result.status === "completed",
           async: false,
           ...result,
         });
       } catch (error) {
         return {
-          ...jsonContent({
+          ...jsonText({
             success: false,
             message: error instanceof Error ? error.message : String(error),
           }),
@@ -128,7 +123,7 @@ export function registerPipelineTools(server: McpServer): void {
 
         if (runAsync) {
           await enqueuePipelineResume(pipeline_job_id);
-          return jsonContent({
+          return jsonText({
             success: true,
             async: true,
             pipelineJobId: pipeline_job_id,
@@ -138,14 +133,14 @@ export function registerPipelineTools(server: McpServer): void {
 
         const result = await resumePipelineJob(pipeline_job_id);
 
-        return jsonContent({
+        return jsonText({
           success: result.status === "completed",
           message: "Pipeline resumido com sucesso.",
           ...result,
         });
       } catch (error) {
         return {
-          ...jsonContent({
+          ...jsonText({
             success: false,
             message: error instanceof Error ? error.message : String(error),
           }),
@@ -167,12 +162,12 @@ export function registerPipelineTools(server: McpServer): void {
         const snapshot = await getPipelineSnapshot(pipeline_job_id);
         if (!snapshot) {
           return {
-            ...jsonContent({ success: false, message: "Pipeline não encontrado" }),
+            ...jsonText({ success: false, message: "Pipeline não encontrado" }),
             isError: true,
           };
         }
 
-        return jsonContent({
+        return jsonText({
           success: true,
           pipeline: snapshot.job,
           childJobs: snapshot.children.map((c) => ({
@@ -187,7 +182,7 @@ export function registerPipelineTools(server: McpServer): void {
         });
       } catch (error) {
         return {
-          ...jsonContent({
+          ...jsonText({
             success: false,
             message: error instanceof Error ? error.message : String(error),
           }),

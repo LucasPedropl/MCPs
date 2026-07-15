@@ -3,6 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { errorText, jsonText } from "@mcps/shared";
 import { upsertPreference } from "../modules/memory/memory-store.js";
+import { invalidateContextCache } from "../modules/context/context-assembler.js";
 import { upsertPolicy, type PolicyRecord } from "../modules/policy/policy-store.js";
 import { isSupabaseConfigured } from "../features/supabase-client.js";
 import { describeAgentTool } from "./tool-docs.js";
@@ -76,6 +77,8 @@ export function registerSetProjectRule(server: McpServer): void {
           });
         }
       }
+
+      invalidateContextCache();
 
       return jsonText({
         preference: { id: preference.id, key, scope: "project", workspace },

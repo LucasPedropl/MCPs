@@ -16,7 +16,7 @@ conteúdo é servido via tool `get_usage_guide`.
       "command": "node",
       "args": ["C:/codigo/pessoal/MCPs/packages/agent-os/dist/index.js"],
       "env": {
-        "AGENT_OS_SUPABASE_URL": "https://xrjjzyfevbuuxeundgds.supabase.co",
+        "AGENT_OS_SUPABASE_URL": "https://<seu-projeto>.supabase.co",
         "AGENT_OS_SUPABASE_KEY": "<service_role recomendado>",
         "AGENT_OS_DEFAULT_CWD": "C:/codigo/pessoal/seu-projeto",
         "AGENT_OS_MODULES": "all"

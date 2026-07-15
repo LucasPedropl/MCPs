@@ -1,8 +1,11 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { CronJob } from "cron";
 import {
   loadConfig,
   saveConfig,
   registerAllKeepAlive,
+  getConfigPath,
 } from "../../accounts/services/account-store.js";
 import type { KeepAliveEntry } from "../../accounts/schemas/account.schema.js";
 import { notifyFailedPings } from "../../notifications/webhook-notify.js";
@@ -36,6 +39,78 @@ let lastSchedulerTickAt: string | null = null;
 let lastSuccessfulPingAt: string | null = null;
 let currentCron: string | null = null;
 let initialPingDone = false;
+let lockRefreshTimer: NodeJS.Timeout | null = null;
+
+// Eleição de líder por lockfile: com N instâncias do agent-os (Claude Code +
+// Cursor + Antigravity), só uma deve pingar — senão cada projeto recebe N×.
+const LOCK_FRESH_MS = 10 * 60 * 1000;
+const LOCK_REFRESH_MS = 5 * 60 * 1000;
+
+function schedulerLockPath(): string {
+  return path.join(path.dirname(getConfigPath()), "keepalive-scheduler.lock");
+}
+
+function readSchedulerLock(): { pid: number; updatedAt: number } | null {
+  try {
+    return JSON.parse(fs.readFileSync(schedulerLockPath(), "utf8")) as {
+      pid: number;
+      updatedAt: number;
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeSchedulerLock(): void {
+  try {
+    fs.mkdirSync(path.dirname(schedulerLockPath()), { recursive: true });
+    fs.writeFileSync(
+      schedulerLockPath(),
+      JSON.stringify({ pid: process.pid, updatedAt: Date.now() }),
+      "utf8",
+    );
+  } catch {
+    // lock é best-effort
+  }
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function acquireSchedulerLock(): boolean {
+  const existing = readSchedulerLock();
+  if (
+    existing &&
+    existing.pid !== process.pid &&
+    Date.now() - existing.updatedAt < LOCK_FRESH_MS &&
+    isProcessAlive(existing.pid)
+  ) {
+    return false;
+  }
+
+  writeSchedulerLock();
+  // Releitura pós-escrita: se outra instância escreveu por cima no mesmo
+  // instante, o pid gravado decide quem fica com o scheduler.
+  const after = readSchedulerLock();
+  return after?.pid === process.pid;
+}
+
+function releaseSchedulerLock(): void {
+  const existing = readSchedulerLock();
+  if (existing?.pid === process.pid) {
+    try {
+      fs.rmSync(schedulerLockPath(), { force: true });
+    } catch {
+      // best-effort
+    }
+  }
+}
 
 export function getKeepAliveSchedulerStatus(): KeepAliveSchedulerStatus {
   return {
@@ -148,6 +223,16 @@ export function startKeepAliveScheduler(): void {
     return;
   }
 
+  if (!acquireSchedulerLock()) {
+    console.error(
+      "[keepalive] outra instância do agent-os já roda o scheduler — pulando nesta instância.",
+    );
+    return;
+  }
+
+  lockRefreshTimer = setInterval(writeSchedulerLock, LOCK_REFRESH_MS);
+  lockRefreshTimer.unref();
+
   void loadConfig().then(async (config) => {
     currentCron = config.settings.keepAliveCron;
     cronJob = CronJob.from({
@@ -190,5 +275,10 @@ export function stopKeepAliveScheduler(): void {
   cronJob?.stop();
   cronJob = null;
   currentCron = null;
+  if (lockRefreshTimer) {
+    clearInterval(lockRefreshTimer);
+    lockRefreshTimer = null;
+  }
+  releaseSchedulerLock();
   setSchedulerRunning(false);
 }

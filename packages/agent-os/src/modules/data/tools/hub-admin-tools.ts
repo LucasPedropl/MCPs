@@ -96,7 +96,6 @@ async function handleHubAdmin(args: HubAdminArgs) {
       }
       const pat = await getAccountPat(args.accountId);
       const created = await createProject(pat, {
-        accountId: args.accountId,
         name: args.name,
         organizationSlug: args.organizationSlug,
         dbPass: args.dbPass,

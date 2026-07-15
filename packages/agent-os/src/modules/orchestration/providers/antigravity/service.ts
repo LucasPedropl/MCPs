@@ -31,6 +31,7 @@ export interface DelegateToAntigravityInput {
   timeoutMs?: number;
   workspacePath?: string;
   mode?: DelegationMode;
+  signal?: AbortSignal;
   onProgress?: (partial: { response: string; stepCount: number }) => void | Promise<void>;
 }
 
@@ -100,6 +101,7 @@ async function runCascadeDelegation(
   const result = await pollForResponse(client, cascadeId, {
     timeoutMs: bridgeTimeout,
     agenticMode,
+    signal: input.signal,
     onProgress: input.onProgress,
   });
 
@@ -134,6 +136,7 @@ export async function delegateToAntigravity(
       prompt: input.prompt,
       workspacePath: isolatedPath,
       timeoutMs: input.timeoutMs,
+      signal: input.signal,
     });
     return {
       response: headless.response,
@@ -141,12 +144,6 @@ export async function delegateToAntigravity(
       usedHeadless: true,
       modeUsed: "headless",
     };
-  }
-
-  if (agentic && isolatedPath && isAntigravityParallelEnabled() && !isHeadlessAvailable()) {
-    throw new Error(
-      "Paralelismo agentic requer agy headless (agy -p). Instale agy no PATH ou defina BRIDGE_ANTIGRAVITY_HEADLESS_CLI.",
-    );
   }
 
   if (mode === "bridge") {

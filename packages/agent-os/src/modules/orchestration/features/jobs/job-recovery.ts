@@ -1,11 +1,17 @@
-import { appendJobEvent, listJobs, updateJob } from "./job-store.js";
+import { agentOsEnv } from "../../../../config/env.js";
+import {
+  appendJobEvent,
+  listJobs,
+  resetStaleRunningJob,
+  updateJob,
+} from "./job-store.js";
 import { isSupabaseConfigured } from "./supabase-client.js";
 import { moveJobToDlq } from "./job-dlq.js";
 
 const DEFAULT_MAX_RETRIES = 3;
 
 export function getMaxJobRetries(): number {
-  const raw = process.env["BRIDGE_JOB_MAX_RETRIES"];
+  const raw = agentOsEnv("JOB_MAX_RETRIES");
   const parsed = raw ? Number.parseInt(raw, 10) : DEFAULT_MAX_RETRIES;
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MAX_RETRIES;
 }
@@ -68,7 +74,16 @@ export async function prepareJobRetry(
   return delayMs;
 }
 
-/** IDs de jobs `running` que não estão ativos no processo local. */
+function orphanStaleMs(timeoutMs: number): number {
+  return Math.max((timeoutMs || 120_000) * 2, 10 * 60_000);
+}
+
+/**
+ * IDs de jobs `running` órfãos. Um job só é considerado órfão quando não está
+ * ativo neste processo E started_at excedeu 2× o timeout do job (mín. 10min) —
+ * jobs recentes podem estar rodando em OUTRA instância do agent-os e não devem
+ * ser roubados. O reset é atômico (condicionado a status/started_at no banco).
+ */
 export async function findOrphanJobIds(isActive: (jobId: string) => boolean): Promise<string[]> {
   if (!isSupabaseConfigured()) {
     return [];
@@ -76,14 +91,26 @@ export async function findOrphanJobIds(isActive: (jobId: string) => boolean): Pr
 
   const running = await listJobs({ status: "running", limit: 100 });
   const orphanIds: string[] = [];
+  const now = Date.now();
 
   for (const job of running) {
     if (isActive(job.id)) {
       continue;
     }
+
+    const staleMs = orphanStaleMs(job.timeout_ms);
+    const startedAt = job.started_at ? Date.parse(job.started_at) : NaN;
+    if (Number.isFinite(startedAt) && now - startedAt < staleMs) {
+      continue;
+    }
+
+    const cutoffIso = new Date(now - staleMs).toISOString();
+    const reset = await resetStaleRunningJob(job.id, cutoffIso);
+    if (!reset) {
+      continue;
+    }
+
     await updateJob(job.id, {
-      status: "pending",
-      started_at: null,
       metadata: {
         ...job.metadata,
         orphanRecovered: true,
@@ -92,10 +119,34 @@ export async function findOrphanJobIds(isActive: (jobId: string) => boolean): Pr
     });
     await appendJobEvent(job.id, "orphan_recovery", {
       previousStatus: "running",
-      reason: "mcp_restart",
+      reason: "stale_running_job",
     });
     orphanIds.push(job.id);
   }
 
   return orphanIds;
+}
+
+/**
+ * IDs de jobs `pending` parados há mais de 2min e não ativos localmente —
+ * cobre retries agendados via setTimeout que se perderam quando o processo
+ * morreu. Reenfileirar é seguro: o claim atômico impede execução dupla.
+ */
+export async function findStalledPendingJobIds(
+  isActive: (jobId: string) => boolean,
+): Promise<string[]> {
+  if (!isSupabaseConfigured()) {
+    return [];
+  }
+
+  const pending = await listJobs({ status: "pending", limit: 100 });
+  const cutoff = Date.now() - 2 * 60_000;
+
+  return pending
+    .filter((job) => !isActive(job.id))
+    .filter((job) => {
+      const createdAt = Date.parse(job.created_at);
+      return Number.isFinite(createdAt) && createdAt < cutoff;
+    })
+    .map((job) => job.id);
 }

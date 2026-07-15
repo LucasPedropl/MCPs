@@ -28,9 +28,6 @@ export const TaskCategory = {
 
 export type TaskCategory = (typeof TaskCategory)[keyof typeof TaskCategory];
 
-/** @deprecated Use `TaskCategory` — alias mantido para retrocompatibilidade. */
-export type AntigravityTaskCategory = TaskCategory;
-
 // ---------------------------------------------------------------------------
 // Model Pool
 // ---------------------------------------------------------------------------

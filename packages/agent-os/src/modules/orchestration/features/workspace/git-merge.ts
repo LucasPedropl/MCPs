@@ -1,5 +1,4 @@
-import * as fs from "node:fs";
-import * as path from "node:path";
+import { agentOsEnv } from "../../../../config/env.js";
 import type { DelegationWorkspace } from "./git-worktree.js";
 import { releaseDelegationWorkspace } from "./git-worktree.js";
 import {
@@ -10,8 +9,14 @@ import {
   runGitAllowFail,
 } from "./git-utils.js";
 
-export type MergeConflictStrategy = "theirs" | "ours" | "smart";
-export type MergeResolution = "clean" | "strategy" | "auto" | "skipped" | "failed";
+export type MergeConflictStrategy = "manual" | "theirs" | "ours";
+export type MergeResolution =
+  | "clean"
+  | "fast-forward"
+  | "strategy"
+  | "skipped"
+  | "manual"
+  | "failed";
 
 export interface MergeDelegationResult {
   merged: boolean;
@@ -20,24 +25,28 @@ export interface MergeDelegationResult {
   commit?: string;
   conflicts?: string[];
   resolution: MergeResolution;
+  /** true quando a branch bridge/* foi preservada para merge manual. */
+  branchKept?: boolean;
+  manualMergeHint?: string;
   error?: string;
 }
 
-/** Merge automático habilitado por padrão (CI-style, sem aprovação manual). */
+/** Merge automático DESLIGADO por padrão — a branch bridge/* fica para revisão manual. */
 export function isAutoMergeEnabled(): boolean {
-  const raw = process.env["BRIDGE_AUTO_MERGE"];
+  const raw = agentOsEnv("AUTO_MERGE");
   if (raw === undefined || raw === "") {
-    return true;
+    return false;
   }
   return !["0", "false", "no", "off"].includes(raw.toLowerCase());
 }
 
+/** Sem resolução automática de conflito por padrão; theirs/ours exigem opt-in explícito. */
 export function getMergeConflictStrategy(): MergeConflictStrategy {
-  const raw = (process.env["BRIDGE_MERGE_STRATEGY"] ?? "smart").toLowerCase();
+  const raw = (agentOsEnv("MERGE_STRATEGY") ?? "manual").toLowerCase();
   if (raw === "theirs" || raw === "ours") {
     return raw;
   }
-  return "smart";
+  return "manual";
 }
 
 function commitWorktreeChanges(worktreePath: string, branch: string): boolean {
@@ -64,129 +73,78 @@ function listConflictFiles(cwd: string): string[] {
     .filter(Boolean);
 }
 
-const CONFLICT_START = /^<<<<<<< /;
-const CONFLICT_SEP = /^=======\s*$/;
-const CONFLICT_END = /^>>>>>>> /;
-
-/** Resolve marcadores de conflito preferindo a versão incoming (delegação). */
-function resolveConflictMarkers(content: string, strategy: MergeConflictStrategy): string {
-  const lines = content.split("\n");
-  const resolved: string[] = [];
-  let index = 0;
-
-  while (index < lines.length) {
-    const line = lines[index] ?? "";
-    if (!CONFLICT_START.test(line)) {
-      resolved.push(line);
-      index += 1;
-      continue;
-    }
-
-    index += 1;
-    const ours: string[] = [];
-    while (index < lines.length && !CONFLICT_SEP.test(lines[index] ?? "")) {
-      ours.push(lines[index] ?? "");
-      index += 1;
-    }
-    index += 1;
-
-    const theirs: string[] = [];
-    while (index < lines.length && !CONFLICT_END.test(lines[index] ?? "")) {
-      theirs.push(lines[index] ?? "");
-      index += 1;
-    }
-    index += 1;
-
-    const pickTheirs = strategy === "theirs" || strategy === "smart";
-    const pickOurs = strategy === "ours";
-
-    if (pickTheirs && theirs.length > 0) {
-      resolved.push(...theirs);
-    } else if (pickOurs && ours.length > 0) {
-      resolved.push(...ours);
-    } else if (theirs.length > 0) {
-      resolved.push(...theirs);
-    } else if (ours.length > 0) {
-      resolved.push(...ours);
-    }
-  }
-
-  return resolved.join("\n");
-}
-
-function resolveConflictsInWorkspace(
-  basePath: string,
-  strategy: MergeConflictStrategy,
-): string[] {
-  const conflictFiles = listConflictFiles(basePath);
-  for (const file of conflictFiles) {
-    const fullPath = path.join(basePath, file);
-    const content = fs.readFileSync(fullPath, "utf8");
-    fs.writeFileSync(fullPath, resolveConflictMarkers(content, strategy), "utf8");
-    runGit(basePath, ["add", file]);
-  }
-  return conflictFiles;
+function getCurrentBranch(cwd: string): string {
+  const result = runGitAllowFail(cwd, ["rev-parse", "--abbrev-ref", "HEAD"]);
+  return result.ok ? result.stdout : "";
 }
 
 function deleteDelegationBranch(basePath: string, branch: string): void {
   runGitAllowFail(basePath, ["branch", "-D", branch]);
 }
 
-function attemptMerge(
-  basePath: string,
+function manualResult(
+  targetBranch: string,
   sourceBranch: string,
-  strategy: MergeConflictStrategy,
-): { ok: boolean; resolution: MergeResolution; conflicts: string[] } {
-  abortMergeIfInProgress(basePath);
-
-  let merge = runGitAllowFail(basePath, ["merge", sourceBranch, "--no-edit"]);
-  if (merge.ok) {
-    return { ok: true, resolution: "clean", conflicts: [] };
-  }
-
-  if (strategy === "smart") {
-    abortMergeIfInProgress(basePath);
-    merge = runGitAllowFail(basePath, [
-      "merge",
-      sourceBranch,
-      "--no-edit",
-      "-X",
-      "theirs",
-    ]);
-    if (merge.ok) {
-      return { ok: true, resolution: "strategy", conflicts: [] };
-    }
-  } else if (strategy === "theirs" || strategy === "ours") {
-    abortMergeIfInProgress(basePath);
-    const prefer = strategy === "theirs" ? "theirs" : "ours";
-    merge = runGitAllowFail(basePath, [
-      "merge",
-      sourceBranch,
-      "--no-edit",
-      "-X",
-      prefer,
-    ]);
-    if (merge.ok) {
-      return { ok: true, resolution: "strategy", conflicts: [] };
-    }
-  }
-
-  const conflicts = listConflictFiles(basePath);
-  if (conflicts.length === 0) {
-    return { ok: false, resolution: "failed", conflicts: [] };
-  }
-
-  const resolvedFiles = resolveConflictsInWorkspace(basePath, strategy);
-  const commit = runGitAllowFail(basePath, ["commit", "--no-edit"]);
-  if (!commit.ok) {
-    abortMergeIfInProgress(basePath);
-    return { ok: false, resolution: "failed", conflicts: resolvedFiles };
-  }
-
-  return { ok: true, resolution: "auto", conflicts: resolvedFiles };
+  reason: string,
+  conflicts?: string[],
+): MergeDelegationResult {
+  return {
+    merged: false,
+    targetBranch,
+    sourceBranch,
+    conflicts: conflicts && conflicts.length > 0 ? conflicts : undefined,
+    resolution: "manual",
+    branchKept: true,
+    manualMergeHint: `Revise e mescle manualmente: git merge ${sourceBranch} (${reason})`,
+  };
 }
 
-/** Commita, faz merge na branch base, remove worktree e apaga branch de delegação. */
+/**
+ * Commita o trabalho da delegação na branch bridge/*, remove o worktree e
+ * PRESERVA a branch para merge manual. Nunca toca na branch do usuário.
+ */
+export function preserveDelegationWorkspace(
+  workspace: DelegationWorkspace,
+): MergeDelegationResult {
+  const targetBranch = workspace.baseBranch;
+  const sourceBranch = workspace.branch;
+
+  if (!workspace.isolated) {
+    return { merged: false, targetBranch, sourceBranch, resolution: "skipped" };
+  }
+
+  const worktreePath = workspace.worktreePath ?? workspace.path;
+
+  try {
+    commitWorktreeChanges(worktreePath, sourceBranch);
+    const ahead = branchCommitsAhead(workspace.basePath, sourceBranch, targetBranch);
+    releaseDelegationWorkspace(workspace);
+
+    if (ahead === 0) {
+      deleteDelegationBranch(workspace.basePath, sourceBranch);
+      return { merged: false, targetBranch, sourceBranch, resolution: "skipped" };
+    }
+
+    return manualResult(targetBranch, sourceBranch, "auto-merge desativado");
+  } catch (error) {
+    return {
+      merged: false,
+      targetBranch,
+      sourceBranch,
+      resolution: "failed",
+      branchKept: true,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/**
+ * Commita e tenta merge SEGURO na branch base:
+ * - nunca faz checkout no repositório do usuário;
+ * - se a branch alvo não está em uso: apenas fast-forward via ref update;
+ * - se está em uso e limpa: merge normal; conflito → aborta e preserva a branch;
+ * - theirs/ours só quando configurado explicitamente.
+ */
 export function finalizeDelegationWorkspace(
   workspace: DelegationWorkspace,
 ): MergeDelegationResult {
@@ -195,12 +153,7 @@ export function finalizeDelegationWorkspace(
   const sourceBranch = workspace.branch;
 
   if (!workspace.isolated) {
-    return {
-      merged: false,
-      targetBranch,
-      sourceBranch,
-      resolution: "skipped",
-    };
+    return { merged: false, targetBranch, sourceBranch, resolution: "skipped" };
   }
 
   const worktreePath = workspace.worktreePath ?? workspace.path;
@@ -209,32 +162,66 @@ export function finalizeDelegationWorkspace(
     commitWorktreeChanges(worktreePath, sourceBranch);
 
     const ahead = branchCommitsAhead(basePath, sourceBranch, targetBranch);
-    const dirty = hasWorkingTreeChanges(worktreePath);
 
     releaseDelegationWorkspace(workspace);
 
-    if (ahead === 0 && !dirty) {
+    if (ahead === 0) {
       deleteDelegationBranch(basePath, sourceBranch);
-      return {
-        merged: false,
-        targetBranch,
-        sourceBranch,
-        resolution: "skipped",
-      };
+      return { merged: false, targetBranch, sourceBranch, resolution: "skipped" };
     }
 
-    runGit(basePath, ["checkout", targetBranch]);
+    const currentBranch = getCurrentBranch(basePath);
 
-    const mergeAttempt = attemptMerge(basePath, sourceBranch, getMergeConflictStrategy());
-    if (!mergeAttempt.ok) {
-      return {
-        merged: false,
+    if (currentBranch !== targetBranch) {
+      // Branch alvo não está no working tree: só fast-forward via ref update.
+      const ff = runGitAllowFail(basePath, [
+        "fetch",
+        ".",
+        `${sourceBranch}:${targetBranch}`,
+      ]);
+      if (ff.ok) {
+        const commit = runGitAllowFail(basePath, ["rev-parse", targetBranch]).stdout;
+        deleteDelegationBranch(basePath, sourceBranch);
+        return {
+          merged: true,
+          targetBranch,
+          sourceBranch,
+          commit: commit || undefined,
+          resolution: "fast-forward",
+        };
+      }
+      return manualResult(
         targetBranch,
         sourceBranch,
-        conflicts: mergeAttempt.conflicts,
-        resolution: "failed",
-        error: "Merge automático falhou após resolução de conflitos.",
-      };
+        `branch atual é ${currentBranch || "desconhecida"}; fast-forward não foi possível`,
+      );
+    }
+
+    if (hasWorkingTreeChanges(basePath)) {
+      return manualResult(
+        targetBranch,
+        sourceBranch,
+        "working tree com mudanças não commitadas",
+      );
+    }
+
+    const strategy = getMergeConflictStrategy();
+    abortMergeIfInProgress(basePath);
+    const mergeArgs = ["merge", sourceBranch, "--no-edit"];
+    if (strategy === "theirs" || strategy === "ours") {
+      mergeArgs.push("-X", strategy);
+    }
+    const merge = runGitAllowFail(basePath, mergeArgs);
+
+    if (!merge.ok) {
+      const conflicts = listConflictFiles(basePath);
+      abortMergeIfInProgress(basePath);
+      return manualResult(
+        targetBranch,
+        sourceBranch,
+        "conflitos de merge",
+        conflicts,
+      );
     }
 
     const commit = runGitAllowFail(basePath, ["rev-parse", "HEAD"]).stdout;
@@ -245,8 +232,7 @@ export function finalizeDelegationWorkspace(
       targetBranch,
       sourceBranch,
       commit: commit || undefined,
-      conflicts: mergeAttempt.conflicts.length > 0 ? mergeAttempt.conflicts : undefined,
-      resolution: mergeAttempt.resolution,
+      resolution: strategy === "manual" ? "clean" : "strategy",
     };
   } catch (error) {
     abortMergeIfInProgress(basePath);
@@ -255,6 +241,7 @@ export function finalizeDelegationWorkspace(
       targetBranch,
       sourceBranch,
       resolution: "failed",
+      branchKept: true,
       error: error instanceof Error ? error.message : String(error),
     };
   }

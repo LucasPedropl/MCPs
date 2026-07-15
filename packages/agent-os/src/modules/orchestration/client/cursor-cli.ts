@@ -1,6 +1,7 @@
 import { execSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { agentOsEnv } from "../../../config/env.js";
 
 export interface CursorCliInfo {
   command: string;
@@ -33,7 +34,7 @@ function firstExistingPath(candidates: string[]): string | null {
  * Localiza o binário do Cursor Agent CLI (agent / cursor-agent).
  */
 export function findCursorAgentCli(): CursorCliInfo | null {
-  const envCli = process.env["BRIDGE_CURSOR_AGENT_CLI"];
+  const envCli = agentOsEnv("CURSOR_AGENT_CLI");
   if (envCli?.trim() && fs.existsSync(envCli.trim())) {
     return { command: envCli.trim(), source: "env" };
   }

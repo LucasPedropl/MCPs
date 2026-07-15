@@ -14,7 +14,7 @@ export {
   probeSupabaseConnection,
 };
 
-export function getSupabaseUrl(): string {
+export function getSupabaseUrl(): string | null {
   return getAgentOsSupabaseUrl();
 }
 
@@ -24,7 +24,7 @@ export function getSupabaseKey(): string | null {
 
 export function getSupabaseStatus(): {
   configured: boolean;
-  url: string;
+  url: string | null;
   reachable: boolean | null;
 } {
   return {

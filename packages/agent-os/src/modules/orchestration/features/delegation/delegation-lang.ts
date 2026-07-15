@@ -1,3 +1,4 @@
+import { agentOsEnv } from "../../../../config/env.js";
 import type { BridgeProvider } from "../../client/types.js";
 
 export type DelegationLang = "en" | "pt";
@@ -8,10 +9,10 @@ const EN_PREFIX = "Reply in English. Be concise.\n\n";
 /**
  * Idioma inter-agente (orquestrador ↔ Antigravity).
  * Default `en` — inglês tokeniza ~15–25% mais barato que PT nos modelos atuais.
- * Env: BRIDGE_DELEGATION_LANG=en|pt
+ * Env: AGENT_OS_DELEGATION_LANG=en|pt (legado: BRIDGE_DELEGATION_LANG)
  */
 export function getDelegationLang(): DelegationLang {
-  const raw = process.env["BRIDGE_DELEGATION_LANG"]?.trim().toLowerCase();
+  const raw = agentOsEnv("DELEGATION_LANG")?.toLowerCase();
   if (raw === "pt" || raw === "pt-br" || raw === "portuguese") {
     return "pt";
   }
@@ -38,7 +39,7 @@ export function prepareProviderPrompt(prompt: string, provider: BridgeProvider):
   if (provider === "antigravity") {
     return prepareAntigravityPrompt(prompt);
   }
-  if (process.env["BRIDGE_DELEGATION_LANG_ALL"] === "1" && isDelegationEnglish()) {
+  if (agentOsEnv("DELEGATION_LANG_ALL") === "1" && isDelegationEnglish()) {
     return prepareAntigravityPrompt(prompt);
   }
   return prompt;
@@ -46,7 +47,7 @@ export function prepareProviderPrompt(prompt: string, provider: BridgeProvider):
 
 export function getDelegationLangHint(): string {
   const lang = getDelegationLang();
-  const all = process.env["BRIDGE_DELEGATION_LANG_ALL"] === "1";
+  const all = agentOsEnv("DELEGATION_LANG_ALL") === "1";
   if (lang === "en") {
     return all
       ? "Inter-agent EN (all providers) — ~15–25% token savings vs PT"

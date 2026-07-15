@@ -1,4 +1,5 @@
 import picomatch from "picomatch";
+import { toPosix } from "@mcps/shared";
 import { getSupabaseClient, isSupabaseConfigured } from "../../features/supabase-client.js";
 
 export interface PolicyRule {
@@ -32,11 +33,6 @@ function parsePolicyRule(raw: unknown): PolicyRule {
   return { effect: "deny" };
 }
 
-/** Normaliza separadores para glob de paths (Windows → posix). */
-function toPosix(text: string): string {
-  return text.replace(/\\/g, "/");
-}
-
 function looksLikeGlob(pattern: string): boolean {
   return pattern.includes("*") || pattern.includes("?") || pattern.includes("[");
 }
@@ -54,27 +50,36 @@ function matchGlob(text: string, pattern: string): boolean {
  * Matching de patterns de policy, em ordem de precedência:
  * 1. "*" ou vazio → sempre casa
  * 2. Glob (contém * ? [) → picomatch case-insensitive, paths normalizados
- * 3. Regex válida → RegExp case-insensitive
- * 4. Fallback → substring case-insensitive
+ * 3. Regex EXPLÍCITA entre barras ("/.../") → RegExp case-insensitive
+ * 4. Texto simples → igualdade ou prefixo com fronteira de palavra
+ *    ("rm" casa "rm -rf x" mas NÃO "format" — substring gerava falsos positivos)
  */
 export function matchesPattern(text: string, pattern: string): boolean {
   if (!pattern || pattern === "*") {
     return true;
   }
 
-  if (looksLikeGlob(pattern) && matchGlob(text, pattern)) {
+  if (looksLikeGlob(pattern)) {
+    return matchGlob(text, pattern);
+  }
+
+  if (pattern.length > 2 && pattern.startsWith("/") && pattern.endsWith("/")) {
+    try {
+      return new RegExp(pattern.slice(1, -1), "i").test(text);
+    } catch {
+      return false;
+    }
+  }
+
+  const normalizedText = text.toLowerCase().trim();
+  const normalizedPattern = pattern.toLowerCase().trim();
+  if (normalizedText === normalizedPattern) {
     return true;
   }
-
-  try {
-    if (new RegExp(pattern, "i").test(text)) {
-      return true;
-    }
-  } catch {
-    // pattern não é regex válida — segue para substring
-  }
-
-  return text.toLowerCase().includes(pattern.toLowerCase());
+  return (
+    normalizedText.startsWith(normalizedPattern) &&
+    !/[a-z0-9_]/.test(normalizedText.charAt(normalizedPattern.length))
+  );
 }
 
 /**

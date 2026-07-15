@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { jsonText } from "@mcps/shared";
 import { z } from "zod";
 import { resolveWorkspacePath } from "../client/workspace-resolve.js";
 import { isSupabaseConfigured } from "../features/jobs/supabase-client.js";
@@ -19,12 +20,6 @@ import {
 } from "./tool-docs.js";
 
 const plannerModeSchema = z.enum(["off", "on", "default"]).optional();
-
-function jsonContent(data: unknown) {
-  return {
-    content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
-  };
-}
 
 function requireSupabase() {
   if (!isSupabaseConfigured()) {
@@ -72,7 +67,7 @@ export function registerSessionTools(server: McpServer): void {
           workspace_path: workspace,
         });
         if (!result.success) {
-          return { ...jsonContent({ success: false, message: result.message }), isError: true };
+          return { ...jsonText({ success: false, message: result.message }), isError: true };
         }
 
         const session = await createSession({
@@ -85,7 +80,7 @@ export function registerSessionTools(server: McpServer): void {
           lastResponse: result.response,
         });
 
-        return jsonContent({
+        return jsonText({
           success: true,
           sessionId: session.id,
           provider,
@@ -97,7 +92,7 @@ export function registerSessionTools(server: McpServer): void {
         });
       } catch (error) {
         return {
-          ...jsonContent({
+          ...jsonText({
             success: false,
             message: error instanceof Error ? error.message : String(error),
           }),
@@ -147,10 +142,10 @@ export function registerSessionTools(server: McpServer): void {
           reject_plan: params.reject_plan,
         });
 
-        return jsonContent({ success: true, ...result });
+        return jsonText({ success: true, ...result });
       } catch (error) {
         return {
-          ...jsonContent({
+          ...jsonText({
             success: false,
             message: error instanceof Error ? error.message : String(error),
           }),
@@ -181,14 +176,14 @@ export function registerSessionTools(server: McpServer): void {
 
         if (action === "get") {
           if (!session_id) {
-            return { ...jsonContent({ success: false, message: "action=get exige session_id" }), isError: true };
+            return { ...jsonText({ success: false, message: "action=get exige session_id" }), isError: true };
           }
           const session = await getSession(session_id);
           if (!session) {
-            return { ...jsonContent({ success: false, message: "Sessão não encontrada" }), isError: true };
+            return { ...jsonText({ success: false, message: "Sessão não encontrada" }), isError: true };
           }
           const context = await listSharedContext(session.workspace, session.id, 10);
-          return jsonContent({ success: true, session, context });
+          return jsonText({ success: true, session, context });
         }
 
         if (action === "list") {
@@ -197,11 +192,11 @@ export function registerSessionTools(server: McpServer): void {
             provider,
             limit,
           });
-          return jsonContent({ success: true, count: sessions.length, sessions });
+          return jsonText({ success: true, count: sessions.length, sessions });
         }
 
         if (!content) {
-          return { ...jsonContent({ success: false, message: "action=add_context exige content" }), isError: true };
+          return { ...jsonText({ success: false, message: "action=add_context exige content" }), isError: true };
         }
         const item = await addSharedContext({
           workspace: resolveWorkspacePath(workspace_path),
@@ -210,10 +205,10 @@ export function registerSessionTools(server: McpServer): void {
           content,
           contentType: content_type,
         });
-        return jsonContent({ success: true, context: item });
+        return jsonText({ success: true, context: item });
       } catch (error) {
         return {
-          ...jsonContent({
+          ...jsonText({
             success: false,
             message: error instanceof Error ? error.message : String(error),
           }),

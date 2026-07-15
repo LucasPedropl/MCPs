@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { jsonText } from "@mcps/shared";
 import { z } from "zod";
 import { resolveWorkspacePath } from "../client/workspace-resolve.js";
 import { enqueueJob } from "../features/jobs/job-runner.js";
@@ -19,12 +20,6 @@ const providerSpecSchema = z.object({
   agentic_mode: z.boolean().optional(),
   mode: z.enum(["subagent", "bridge"]).optional(),
 });
-
-function jsonContent(data: unknown) {
-  return {
-    content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
-  };
-}
 
 function resolveProviders(
   prompt: string,
@@ -66,7 +61,7 @@ export function registerParallelTools(server: McpServer): void {
       try {
         const denial = await guardDelegation(prompt, "delegate_parallel:*");
         if (denial) {
-          return { ...jsonContent({ success: false, ...denial }), isError: true };
+          return { ...jsonText({ success: false, ...denial }), isError: true };
         }
 
         const { providers: resolved, routeInfo } = resolveProviders(
@@ -77,7 +72,7 @@ export function registerParallelTools(server: McpServer): void {
 
         if (resolved.length === 0) {
           return {
-            ...jsonContent({ success: false, message: "Nenhum provider selecionado." }),
+            ...jsonText({ success: false, message: "Nenhum provider selecionado." }),
             isError: true,
           };
         }
@@ -109,7 +104,7 @@ export function registerParallelTools(server: McpServer): void {
           });
           enqueueJob(parentJobId);
 
-          return jsonContent({
+          return jsonText({
             success: true,
             async: true,
             jobId: parentJobId,
@@ -123,7 +118,7 @@ export function registerParallelTools(server: McpServer): void {
 
         const result = await runParallelDelegation(input);
 
-        return jsonContent({
+        return jsonText({
           success: result.successCount > 0,
           async: false,
           mergeStrategy: merge_strategy,
@@ -138,7 +133,7 @@ export function registerParallelTools(server: McpServer): void {
         });
       } catch (error) {
         return {
-          ...jsonContent({
+          ...jsonText({
             success: false,
             message: error instanceof Error ? error.message : String(error),
           }),
@@ -156,7 +151,7 @@ export function registerParallelTools(server: McpServer): void {
     },
     async ({ prompt }) => {
       const routeInfo = getRouteInfo(prompt);
-      return jsonContent({
+      return jsonText({
         success: true,
         category: routeInfo.category,
         suggestedProviders: routeInfo.providers.map((p) => p.provider),

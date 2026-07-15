@@ -6,7 +6,7 @@ import {
   listChildJobs,
   updateJob,
 } from "../jobs/job-store.js";
-import { pickAntigravityModel, type AntigravityTaskCategory } from "../../providers/antigravity/model-router.js";
+import { pickAntigravityModel, type TaskCategory } from "../../providers/antigravity/model-router.js";
 import { runDelegationWithFallback } from "../../providers/fallback.js";
 import { buildJobMetrics, recordJobMetrics } from "../jobs/job-metrics.js";
 import { isAgenticRole, isHitlEnabled, pauseForApproval } from "../jobs/job-hitl.js";
@@ -26,7 +26,7 @@ import type {
   PromptContext,
 } from "./types.js";
 
-function roleToModelCategory(role: PipelineStepConfig["role"]): AntigravityTaskCategory {
+function roleToModelCategory(role: PipelineStepConfig["role"]): TaskCategory {
   if (role === "plan") return "architecture";
   if (role === "review") return "review";
   if (role === "fix") return "implement";

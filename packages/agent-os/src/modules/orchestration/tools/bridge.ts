@@ -20,6 +20,8 @@ import { getAllProviderStatusesWithAuth } from "../providers/status.js";
 import { getTargetWorkspacePath } from "../client/workspace.js";
 import { isAntigravityParallelEnabled, getAntigravityPlannerModeDefault } from "../providers/antigravity/config.js";
 import { isAutoMergeEnabled } from "../features/workspace/git-merge.js";
+import { isWorktreeIsolationEnabled } from "../features/workspace/git-worktree.js";
+import { agentOsEnv, isRealtimeWorkerEnabled } from "../../../config/env.js";
 import {
   getCircuitBreakerStats,
   isFallbackEnabled,
@@ -41,40 +43,44 @@ import {
 } from "./tool-docs.js";
 import { guardDelegation } from "./policy-guard.js";
 
-export const BRIDGE_VERSION = "1.0.1";
-export const BRIDGE_FEATURES = {
-  antigravity: true,
-  cursor: true,
-  hotReload: process.env["BRIDGE_HOT_RELOAD"] === "1",
-  worktreeIsolation: process.env["BRIDGE_ISOLATE_WORKSPACE"] !== "0",
-  autoMerge: isAutoMergeEnabled(),
-  asyncJobs: true,
-  parallel: true,
-  parallelMerge: ["raw_all", "best_of", "consensus"],
-  promptRouter: true,
-  sessions: true,
-  contextPack: true,
-  streamingChunks: true,
-  healthHistory: true,
-  pipeline: true,
-  pipelineZodValidation: true,
-  pipelineReviewFixLoop: true,
-  pipelineContextCompression: true,
-  providerFallback: isFallbackEnabled(),
-  circuitBreaker: true,
-  jobMetrics: true,
-  hitl: isHitlEnabled(),
-  providerAdapter: true,
-  antigravityModelRouter: true,
-  antigravityPlannerMode: getAntigravityPlannerModeDefault(),
-  dynamicModelListing: true,
-  githubWebhooks: true,
-  realtimeWorker: process.env["BRIDGE_REALTIME_WORKER"] === "1",
-  antigravityParallel: isAntigravityParallelEnabled(),
-  delegationLang: getDelegationLang(),
-  delegationLangHint: getDelegationLangHint(),
-  bridgeMode: "partial",
-} as const;
+export const BRIDGE_VERSION = "2.0.0";
+
+/**
+ * Flags avaliadas em TEMPO DE CHAMADA (snapshot em import-time mentia quando
+ * a env mudava) e coerentes com as funções que o server realmente usa.
+ */
+export function getBridgeFeatures(): Record<string, unknown> {
+  return {
+    antigravity: true,
+    cursor: true,
+    worktreeIsolation: isWorktreeIsolationEnabled(),
+    autoMerge: isAutoMergeEnabled(),
+    asyncJobs: true,
+    parallel: true,
+    parallelMerge: ["raw_all", "best_of", "consensus"],
+    promptRouter: true,
+    sessions: true,
+    contextPack: true,
+    streamingChunks: true,
+    healthHistory: true,
+    pipeline: true,
+    pipelineZodValidation: true,
+    pipelineReviewFixLoop: true,
+    pipelineContextCompression: true,
+    providerFallback: isFallbackEnabled(),
+    circuitBreaker: true,
+    jobMetrics: true,
+    hitl: isHitlEnabled(),
+    antigravityModelRouter: true,
+    antigravityPlannerMode: getAntigravityPlannerModeDefault(),
+    dynamicModelListing: true,
+    githubWebhooks: true,
+    realtimeWorker: isRealtimeWorkerEnabled(),
+    antigravityParallel: isAntigravityParallelEnabled(),
+    delegationLang: getDelegationLang(),
+    delegationLangHint: getDelegationLangHint(),
+  };
+}
 
 export function registerBridgeTools(server: McpServer): void {
   server.tool(
@@ -148,7 +154,7 @@ export function registerBridgeTools(server: McpServer): void {
       const payload = verbose
         ? {
             bridgeVersion: BRIDGE_VERSION,
-            bridgeFeatures: BRIDGE_FEATURES,
+            bridgeFeatures: getBridgeFeatures(),
             supabase: { ...supabaseStatus, reachable: supabaseReachable },
             providers,
             selectedAntigravityWorkspace: selectedWorkspace,
@@ -161,7 +167,7 @@ export function registerBridgeTools(server: McpServer): void {
             targetWorkspace: getResolvedTargetWorkspace(),
             workspaceResolution: getWorkspaceResolutionDebug(),
             autoLaunchEnabled: isAntigravityAutoLaunchEnabled(),
-            defaultCwd: process.env["BRIDGE_DEFAULT_CWD"] ?? process.cwd(),
+            defaultCwd: agentOsEnv("DEFAULT_CWD") ?? process.cwd(),
           }
         : {
             bridgeVersion: BRIDGE_VERSION,

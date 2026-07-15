@@ -41,69 +41,6 @@ RETURNS: { success, job, events[], isTerminal }`,
 RETURNS: Resumo enxuto por padrão. verbose=true inclui antigravityHealth raw.`,
 };
 
-export const BRIDGE_INSTRUCTIONS = `
-# IDE Bridge MCP v1.0 — Agent Instructions
-
-You orchestrate coding tasks by delegating to Antigravity or Cursor CLI.
-Always call \`get_usage_guide\` or \`bridge_status\` first in a new workspace to confirm target path and provider health.
-
-## Workspace resolution (priority order)
-1. \`workspace_path\` parameter on any delegation tool (explicit override)
-2. \`BRIDGE_DEFAULT_CWD\` env in mcp.json
-3. Cursor \`WORKSPACE_FOLDER_PATHS\` (auto when MCP runs inside a project)
-4. \`ANTIGRAVITY_WORKSPACE\` env fallback
-
-Per-project setup: use \`"BRIDGE_DEFAULT_CWD": "\${workspaceFolder}"\` in .cursor/mcp.json.
-
-## Mode: subagent vs bridge
-- **subagent** (default): background Cascade/subagent — no UI focus, ideal for parallel work.
-- **bridge**: sends prompt to Antigravity chat panel (visible in IDE).
-
-## agentic_mode
-- **false**: read-only or chat-only — no file edits, no git worktree.
-- **true**: provider may edit files. Creates isolated git worktree + auto-merge on success.
-  Use only when you intend code changes. Test with agentic_mode=false first in new projects.
-
-## Antigravity Plan Mode
-- Default \`planner_mode=off\` (\`PLANNING_OFF\`) — Antigravity executes without asking for plan confirmation.
-- Override with \`planner_mode=on\` or env \`BRIDGE_ANTIGRAVITY_PLANNER_MODE=on|off|default\`.
-- If response has \`awaiting_plan_approval=true\`: use \`create_session\` (or existing session) then
-  \`continue_session({ approve_plan: true })\` to implement, or \`reject_plan: true\` to stop.
-
-## Decision tree — which tool?
-| Need | Tool |
-|------|------|
-| Quick answer, text only, <2min | \`delegate_and_wait\` |
-| Full JSON metadata (merge, branch, sessionId) | \`delegate_task\` |
-| Long task, poll later, needs Supabase | \`delegate_async\` → \`get_job_status\` |
-| Multi-step plan→implement→review→fix | \`run_pipeline\` |
-| Same prompt, multiple providers | \`delegate_parallel\` |
-| Smart provider pick | \`route_prompt\` |
-| Multi-turn context | \`create_session\` → \`continue_session\` |
-| Approve Antigravity plan | \`continue_session\` + \`approve_plan=true\` |
-
-## Prerequisites
-- **delegate_async / run_pipeline / sessions**: Supabase (\`BRIDGE_SUPABASE_KEY\` in mcp.json)
-- **HITL approval**: \`BRIDGE_HITL_ENABLED=1\`
-- **Realtime worker**: \`BRIDGE_REALTIME_WORKER=1\`
-- **Cursor provider**: \`agent login\` must work
-
-## Quota pools (Antigravity)
-- **gemini**: Gemini Flash/Pro models — separate reset cycle
-- **external**: Claude + GPT-OSS — shared pool, check \`bridge_status.quotaPools\`
-
-## Inter-agent language (token savings)
-- Default \`BRIDGE_DELEGATION_LANG=en\` — orchestrator ↔ Antigravity in English (~15–25% fewer tokens vs PT).
-- Write delegation prompts in English when calling \`delegate_task\` / \`delegate_async\`.
-- Pipeline step prompts auto-switch EN/PT. Set \`BRIDGE_DELEGATION_LANG=pt\` to disable EN prefix.
-- Optional \`BRIDGE_DELEGATION_LANG_ALL=1\` applies EN prefix to Cursor too.
-
-## Safety
-- Verify \`bridge_status.targetWorkspace\` matches your project before agentic_mode=true
-- Use \`idempotency_key\` in delegate_async to prevent duplicate jobs on retry
-- \`cancel_job\` stops pending/running jobs; cascades to child jobs
-`.trim();
-
 export const TOOL_DESCRIPTIONS: Record<string, string> = {
   get_usage_guide: `
 WHEN TO USE: First call in any new workspace/project. Returns dynamic decision tree, warnings, quotas, provider health.

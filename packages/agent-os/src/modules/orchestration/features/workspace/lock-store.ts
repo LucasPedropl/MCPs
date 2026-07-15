@@ -34,7 +34,17 @@ export async function purgeExpiredLocks(workspace: string): Promise<void> {
     .lt("expires_at", now);
 }
 
-/** Tenta adquirir lock exclusivo no workspace. */
+function sortByAcquisition(a: WorkspaceLockRow, b: WorkspaceLockRow): number {
+  return a.acquired_at.localeCompare(b.acquired_at) || a.id.localeCompare(b.id);
+}
+
+/**
+ * Tenta adquirir lock exclusivo no workspace.
+ * Sem constraint única no banco, check-then-insert tinha corrida TOCTOU: dois
+ * processos "adquiriam" ao mesmo tempo. Agora é insert-then-verify — todos
+ * inserem, o lock mais antigo (tiebreak por id) vence e os perdedores removem
+ * a própria linha.
+ */
 export async function acquireWorkspaceLock(
   input: AcquireLockInput,
 ): Promise<AcquireLockResult> {
@@ -50,21 +60,22 @@ export async function acquireWorkspaceLock(
   await purgeExpiredLocks(workspace);
 
   const client = getSupabaseClient();
-  const { data: existing } = await client
+  const { data: existingRows } = await client
     .from("workspace_locks")
     .select("*")
     .eq("workspace", workspace)
-    .eq("lock_type", "exclusive")
-    .maybeSingle();
+    .eq("lock_type", "exclusive");
 
-  if (existing) {
-    const row = mapRow(existing as Record<string, unknown>);
-    if (row.holder_id === input.holderId) {
-      return { acquired: true, lockId: row.id, expiresAt: row.expires_at };
-    }
+  const existing = (existingRows ?? []).map((row) => mapRow(row as Record<string, unknown>));
+  const own = existing.find((row) => row.holder_id === input.holderId);
+  if (own) {
+    return { acquired: true, lockId: own.id, expiresAt: own.expires_at };
+  }
+  if (existing.length > 0) {
+    const holder = existing.sort(sortByAcquisition)[0];
     return {
       acquired: false,
-      reason: `Workspace bloqueado por ${row.holder_id} até ${row.expires_at}`,
+      reason: `Workspace bloqueado por ${holder?.holder_id} até ${holder?.expires_at}`,
     };
   }
 
@@ -84,22 +95,46 @@ export async function acquireWorkspaceLock(
     return { acquired: false, reason: error.message };
   }
 
-  const row = mapRow(data as Record<string, unknown>);
-  return { acquired: true, lockId: row.id, expiresAt: row.expires_at };
+  const mine = mapRow(data as Record<string, unknown>);
+
+  const { data: verifyRows, error: verifyError } = await client
+    .from("workspace_locks")
+    .select("*")
+    .eq("workspace", workspace)
+    .eq("lock_type", "exclusive")
+    .gt("expires_at", new Date().toISOString());
+
+  if (!verifyError) {
+    const winner = (verifyRows ?? [])
+      .map((row) => mapRow(row as Record<string, unknown>))
+      .sort(sortByAcquisition)[0];
+
+    if (winner && winner.id !== mine.id) {
+      await client.from("workspace_locks").delete().eq("id", mine.id);
+      return {
+        acquired: false,
+        reason: `Workspace bloqueado por ${winner.holder_id} até ${winner.expires_at}`,
+      };
+    }
+  }
+
+  return { acquired: true, lockId: mine.id, expiresAt: mine.expires_at };
 }
 
-/** Aguarda lock com polling (para jobs paralelos sequenciais). */
+/** Aguarda lock com polling + backoff (para jobs paralelos sequenciais). */
 export async function waitForWorkspaceLock(
   input: AcquireLockInput,
   maxWaitMs = 120_000,
 ): Promise<AcquireLockResult> {
   const started = Date.now();
+  let pollMs = POLL_MS;
   while (Date.now() - started < maxWaitMs) {
     const result = await acquireWorkspaceLock(input);
     if (result.acquired) {
       return result;
     }
-    await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+    await new Promise((resolve) => setTimeout(resolve, pollMs));
+    pollMs = Math.min(pollMs * 1.5, 5_000);
   }
   return { acquired: false, reason: `Timeout aguardando lock (${maxWaitMs}ms)` };
 }

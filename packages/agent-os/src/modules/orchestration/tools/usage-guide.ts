@@ -15,7 +15,7 @@ import {
 } from "../features/jobs/supabase-client.js";
 import { getAntigravityHealth } from "../providers/antigravity/service.js";
 import { getAllProviderStatusesWithAuth } from "../providers/status.js";
-import { BRIDGE_FEATURES, BRIDGE_VERSION } from "./bridge.js";
+import { getBridgeFeatures, BRIDGE_VERSION } from "./bridge.js";
 import { describeTool, WORKSPACE_PATH_DESC } from "./tool-docs.js";
 import { getClient } from "./delegation.js";
 
@@ -122,11 +122,11 @@ export async function buildUsageGuide(workspaceOverride?: string): Promise<Usage
       available: p.available,
       detail: p.detail,
     })),
-    featuresEnabled: { ...BRIDGE_FEATURES },
+    featuresEnabled: getBridgeFeatures(),
     workspaceInfo: {
       targetPath,
       resolution: getWorkspaceResolutionDebug(),
-      perProjectHint: 'Use "BRIDGE_DEFAULT_CWD": "${workspaceFolder}" in .cursor/mcp.json',
+      perProjectHint: 'Use "AGENT_OS_DEFAULT_CWD": "${workspaceFolder}" in .cursor/mcp.json',
     },
     quotaSummary,
     warnings,
@@ -134,7 +134,7 @@ export async function buildUsageGuide(workspaceOverride?: string): Promise<Usage
     realtimeWorkerRunning: isRealtimeWorkerRunning(),
     envHints: {
       BRIDGE_DEFAULT_CWD: "Fixa workspace por projeto no mcp.json",
-      BRIDGE_SUPABASE_KEY: "Obrigatório para jobs async",
+      AGENT_OS_SUPABASE_KEY: "Obrigatório para jobs async (legado: BRIDGE_SUPABASE_KEY)",
       BRIDGE_HITL_ENABLED: "1 = pausa steps agentic para aprovação humana",
       BRIDGE_REALTIME_WORKER: "1 = processa jobs via Supabase Realtime",
       BRIDGE_HOT_RELOAD: "1 = reinicia MCP ao salvar código",

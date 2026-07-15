@@ -1,7 +1,11 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { getSkillsRoot } from "../../config/paths.js";
-import { getSupabaseClient, isSupabaseConfigured } from "../../features/supabase-client.js";
+import {
+  getSupabaseClient,
+  isSupabaseConfigured,
+  pgrestQuote,
+} from "../../features/supabase-client.js";
 
 export interface SkillRecord {
   id: string;
@@ -120,7 +124,9 @@ export async function listSkills(workspacePath?: string): Promise<SkillRecord[]>
   let query = client.from("agent_skills").select("*").order("name");
 
   if (workspacePath) {
-    query = query.or(`scope.eq.global,workspace_path.eq.${path.resolve(workspacePath)}`);
+    query = query.or(
+      `scope.eq.global,workspace_path.eq.${pgrestQuote(path.resolve(workspacePath))}`,
+    );
   }
 
   const { data, error } = await query;
@@ -206,9 +212,27 @@ export async function upsertSkill(input: {
 }
 
 export async function getSkill(name: string, version = "1.0.0"): Promise<SkillRecord | null> {
-  const skills = await listSkills();
-  const found = skills.find((s) => s.name === name && s.version === version);
-  return found ?? null;
+  // Query direta por name+version — buscar via listSkills() baixaria TODAS as
+  // skills (com content_md completo) para achar uma.
+  if (isSupabaseConfigured()) {
+    const client = getSupabaseClient();
+    const { data, error } = await client
+      .from("agent_skills")
+      .select("*")
+      .eq("name", name)
+      .eq("version", version)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(`Falha ao buscar skill: ${error.message}`);
+    }
+    if (data) {
+      return data as SkillRecord;
+    }
+  }
+
+  const local = listLocalSkills();
+  return local.find((s) => s.name === name && s.version === version) ?? null;
 }
 
 export async function deleteSkill(name: string, version = "1.0.0"): Promise<void> {
@@ -387,7 +411,7 @@ export async function getLatestPlaybook(aliasOrServerId: string): Promise<string
   const { data: byServer, error: serverError } = await client
     .from("agent_playbooks")
     .select("content_md")
-    .or(`server_id.eq.${aliasOrServerId},alias.eq.${serverAlias}`)
+    .or(`server_id.eq.${pgrestQuote(aliasOrServerId)},alias.eq.${pgrestQuote(serverAlias)}`)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();

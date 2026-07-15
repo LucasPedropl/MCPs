@@ -1,5 +1,9 @@
 import type { MemoryScope } from "@mcps/shared";
-import { getSupabaseClient, isSupabaseConfigured } from "../../features/supabase-client.js";
+import {
+  getSupabaseClient,
+  isSupabaseConfigured,
+  pgrestQuote,
+} from "../../features/supabase-client.js";
 
 export interface PreferenceRecord {
   id: string;
@@ -106,7 +110,9 @@ export async function listPreferences(
     .order("priority", { ascending: false });
 
   if (workspacePath) {
-    query = query.or(`scope.eq.global,and(scope.eq.project,workspace_path.eq.${workspacePath})`);
+    query = query.or(
+      `scope.eq.global,and(scope.eq.project,workspace_path.eq.${pgrestQuote(workspacePath)})`,
+    );
   } else {
     query = query.eq("scope", "global");
   }

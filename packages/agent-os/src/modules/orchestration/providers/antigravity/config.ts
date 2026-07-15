@@ -1,8 +1,9 @@
+import { agentOsEnv } from "../../../../config/env.js";
 import type { CascadeConversationalConfig } from "../../client/types.js";
 
 /** Paralelismo Antigravity no mesmo repo (subagent em background + worktrees agentic). */
 export function isAntigravityParallelEnabled(): boolean {
-  const raw = process.env["BRIDGE_ANTIGRAVITY_PARALLEL"];
+  const raw = agentOsEnv("ANTIGRAVITY_PARALLEL");
   if (raw === undefined || raw === "") {
     return true;
   }
@@ -10,7 +11,7 @@ export function isAntigravityParallelEnabled(): boolean {
 }
 
 export function getAntigravityMaxConcurrent(): number {
-  const raw = process.env["BRIDGE_ANTIGRAVITY_MAX_CONCURRENT"];
+  const raw = agentOsEnv("ANTIGRAVITY_MAX_CONCURRENT");
   const parsed = raw ? Number.parseInt(raw, 10) : 4;
   return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 16) : 4;
 }
@@ -25,7 +26,7 @@ export type AntigravityPlannerMode = NonNullable<
 export function resolveAntigravityPlannerMode(
   param?: PlannerModeParam,
 ): AntigravityPlannerMode {
-  const raw = (param ?? process.env["BRIDGE_ANTIGRAVITY_PLANNER_MODE"] ?? "off")
+  const raw = (param ?? agentOsEnv("ANTIGRAVITY_PLANNER_MODE") ?? "off")
     .trim()
     .toLowerCase();
 

@@ -25,6 +25,11 @@ export async function listConnections(): Promise<HubConnection[]> {
     .order("alias");
 
   if (error) {
+    // Fallback explícito: mascarar erro de credencial/RLS aqui esconderia o
+    // problema real — loga e marca a origem como preset local.
+    console.error(
+      `[mcp-hub] listConnections falhou no Supabase (${error.message}); usando presets locais como fallback.`,
+    );
     return loadLocalConnections();
   }
 

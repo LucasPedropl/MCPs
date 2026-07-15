@@ -1,12 +1,15 @@
 import { execSync } from "node:child_process";
 import { spawn } from "node:child_process";
 import * as fs from "node:fs";
+import { killProcessTree } from "@mcps/shared";
+import { agentOsEnv } from "../../../../config/env.js";
 import { findAntigravityLauncher } from "../../client/launcher.js";
 
 export interface HeadlessAntigravityInput {
   prompt: string;
   workspacePath: string;
   timeoutMs?: number;
+  signal?: AbortSignal;
 }
 
 export interface HeadlessAntigravityResult {
@@ -16,7 +19,7 @@ export interface HeadlessAntigravityResult {
 }
 
 function resolveHeadlessBinary(): string | null {
-  const env = process.env["BRIDGE_ANTIGRAVITY_HEADLESS_CLI"]?.trim();
+  const env = agentOsEnv("ANTIGRAVITY_HEADLESS_CLI");
   if (env && fs.existsSync(env)) {
     return env;
   }
@@ -54,11 +57,11 @@ function resolveHeadlessBinary(): string | null {
 
 /** Headless ativo quando parallel agentic ou flag explícita. */
 export function isHeadlessAntigravityEnabled(): boolean {
-  const parallel = process.env["BRIDGE_ANTIGRAVITY_PARALLEL"];
+  const parallel = agentOsEnv("ANTIGRAVITY_PARALLEL");
   if (parallel === undefined || parallel === "" || !["0", "false", "no", "off"].includes(parallel.toLowerCase())) {
     return true;
   }
-  const raw = process.env["BRIDGE_ANTIGRAVITY_HEADLESS"];
+  const raw = agentOsEnv("ANTIGRAVITY_HEADLESS");
   if (raw === undefined || raw === "") {
     return false;
   }
@@ -95,11 +98,23 @@ export async function delegateToHeadlessAntigravity(
     let stdout = "";
     let stderr = "";
     let timedOut = false;
+    let aborted = false;
 
+    // killProcessTree: via cmd.exe o kill simples só mataria o wrapper.
     const timer = setTimeout(() => {
       timedOut = true;
-      child.kill("SIGTERM");
+      killProcessTree(child.pid);
     }, timeoutMs);
+
+    const onAbort = (): void => {
+      aborted = true;
+      killProcessTree(child.pid);
+    };
+    if (input.signal?.aborted) {
+      onAbort();
+    } else {
+      input.signal?.addEventListener("abort", onAbort, { once: true });
+    }
 
     child.stdout.on("data", (chunk: Buffer) => {
       stdout += chunk.toString("utf8");
@@ -109,10 +124,16 @@ export async function delegateToHeadlessAntigravity(
     });
     child.on("error", (error) => {
       clearTimeout(timer);
+      input.signal?.removeEventListener("abort", onAbort);
       reject(error);
     });
     child.on("close", (exitCode) => {
       clearTimeout(timer);
+      input.signal?.removeEventListener("abort", onAbort);
+      if (aborted) {
+        reject(new Error("Headless agy cancelado (abort)"));
+        return;
+      }
       if (timedOut) {
         reject(new Error(`Headless agy excedeu timeout de ${timeoutMs}ms`));
         return;

@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { jsonText } from "@mcps/shared";
 import { z } from "zod";
 import { resolveWorkspacePath } from "../client/workspace-resolve.js";
 import { getJobChunks, getJobWithEvents } from "../features/jobs/job-store.js";
@@ -6,12 +7,6 @@ import { isSupabaseConfigured } from "../features/jobs/supabase-client.js";
 import { recordAllProviderHealth } from "../features/observability/health-recorder.js";
 import { listHealthSnapshots } from "../features/observability/health-store.js";
 import { describeTool, WORKSPACE_PATH_DESC } from "./tool-docs.js";
-
-function jsonContent(data: unknown) {
-  return {
-    content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
-  };
-}
 
 function requireSupabase() {
   if (!isSupabaseConfigured()) {
@@ -34,15 +29,15 @@ async function handleObservability(args: ObservabilityArgs) {
 
   if (args.action === "chunks") {
     if (!args.job_id) {
-      return { ...jsonContent({ success: false, message: "action=chunks exige job_id" }), isError: true };
+      return { ...jsonText({ success: false, message: "action=chunks exige job_id" }), isError: true };
     }
     const snapshot = await getJobWithEvents(args.job_id);
     if (!snapshot) {
-      return { ...jsonContent({ success: false, message: "Job não encontrado" }), isError: true };
+      return { ...jsonText({ success: false, message: "Job não encontrado" }), isError: true };
     }
     const chunks = await getJobChunks(args.job_id, args.since_seq, args.limit);
     const assembled = chunks.map((c) => c.text).join("");
-    return jsonContent({
+    return jsonText({
       success: true,
       jobId: args.job_id,
       status: snapshot.job.status,
@@ -59,11 +54,11 @@ async function handleObservability(args: ObservabilityArgs) {
       provider: args.provider,
       limit: args.limit,
     });
-    return jsonContent({ success: true, count: snapshots.length, snapshots });
+    return jsonText({ success: true, count: snapshots.length, snapshots });
   }
 
   const snapshots = await recordAllProviderHealth(resolveWorkspacePath(args.workspace_path));
-  return jsonContent({ success: true, snapshots });
+  return jsonText({ success: true, snapshots });
 }
 
 export function registerObservabilityTools(server: McpServer): void {
@@ -86,7 +81,7 @@ export function registerObservabilityTools(server: McpServer): void {
         return await handleObservability(args);
       } catch (error) {
         return {
-          ...jsonContent({
+          ...jsonText({
             success: false,
             message: error instanceof Error ? error.message : String(error),
           }),

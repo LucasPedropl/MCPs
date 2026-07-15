@@ -38,12 +38,26 @@ function defaultConfig(): HubConfig {
 }
 
 export async function loadConfig(): Promise<HubConfig> {
+  let raw: string;
   try {
-    const raw = await readFile(getConfigPath(), "utf8");
-    const parsed = hubConfigSchema.parse(JSON.parse(raw));
-    return parsed;
-  } catch {
-    return defaultConfig();
+    raw = await readFile(getConfigPath(), "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return defaultConfig();
+    }
+    throw error;
+  }
+
+  try {
+    return hubConfigSchema.parse(JSON.parse(raw));
+  } catch (error) {
+    // Config existe mas está corrompido/inválido: falhar alto — devolver o
+    // default aqui faria o próximo saveConfig SOBRESCREVER o arquivo real,
+    // perdendo contas e keep-alive.
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Config do hub inválido em ${getConfigPath()}: ${message}. Corrija ou remova o arquivo manualmente.`,
+    );
   }
 }
 

@@ -1,4 +1,5 @@
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { agentOsEnv } from "../../../../config/env.js";
 import { getSupabaseClient, isSupabaseConfigured } from "./supabase-client.js";
 import { enqueueJob } from "./job-runner.js";
 
@@ -73,8 +74,8 @@ export function startRealtimeWorker(): boolean {
     return false;
   }
 
-  if (process.env["BRIDGE_REALTIME_WORKER"] === "0") {
-    console.error("[realtime-worker] desabilitado via BRIDGE_REALTIME_WORKER=0");
+  if (agentOsEnv("REALTIME_WORKER") === "0") {
+    console.error("[realtime-worker] desabilitado via AGENT_OS_REALTIME_WORKER=0");
     return false;
   }
 

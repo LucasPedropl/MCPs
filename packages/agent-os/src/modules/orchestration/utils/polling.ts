@@ -36,6 +36,10 @@ export async function pollForResponse(
   let stableStepPolls = 0;
 
   while (Date.now() - startTime < timeoutMs) {
+    if (options.signal?.aborted) {
+      throw new Error(`Delegação cancelada (cascade ${cascadeId})`);
+    }
+
     const result = await client.call<GetCascadeTrajectoryStepsResponse>(
       "GetCascadeTrajectorySteps",
       { cascadeId },

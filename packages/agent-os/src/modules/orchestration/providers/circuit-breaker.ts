@@ -1,3 +1,4 @@
+import { agentOsEnv } from "../../../config/env.js";
 import type { BridgeProvider } from "../client/types.js";
 
 type CircuitState = "closed" | "open" | "half_open";
@@ -12,13 +13,13 @@ interface CircuitRecord {
 const records = new Map<BridgeProvider, CircuitRecord>();
 
 function getFailureThreshold(): number {
-  const raw = process.env["BRIDGE_CB_FAILURE_THRESHOLD"];
+  const raw = agentOsEnv("CB_FAILURE_THRESHOLD");
   const parsed = raw ? Number.parseInt(raw, 10) : 3;
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 3;
 }
 
 function getResetMs(): number {
-  const raw = process.env["BRIDGE_CB_RESET_MS"];
+  const raw = agentOsEnv("CB_RESET_MS");
   const parsed = raw ? Number.parseInt(raw, 10) : 60_000;
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 60_000;
 }

@@ -69,11 +69,6 @@ export function getOpenApiEngineEntryPath(): string {
   return path.join(getMonorepoRoot(), "packages", "openapi-engine", "dist", "index.js");
 }
 
-/** @deprecated Use getOpenApiEngineEntryPath — servidor-api removido */
-export function getServidorApiEntryPath(): string {
-  return getOpenApiEngineEntryPath();
-}
-
 export function getPresetsPath(): string {
   const fromEnv = envFirst("AGENT_OS_PRESETS_PATH");
   if (fromEnv) {

@@ -22,7 +22,7 @@ import {
   registerAllMcpServersInHub,
   registerMcpServerInHub,
 } from "../modules/openapi-registry/register-servers.js";
-import { runOpenApiSync } from "../modules/openapi-registry/sync-service.js";
+import { runOpenApiSync } from "@mcps/openapi-engine";
 import { describeAgentTool } from "./tool-docs.js";
 import { redactMcpConfig } from "../lib/mask-secret.js";
 

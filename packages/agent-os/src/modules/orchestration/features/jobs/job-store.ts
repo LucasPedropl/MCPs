@@ -119,6 +119,51 @@ export async function updateJob(
   return mapJobRow(data as Record<string, unknown>);
 }
 
+/**
+ * Claim atômico: move pending → running em um único UPDATE condicional.
+ * Retorna null se outra instância já reivindicou (ou o status mudou).
+ */
+export async function claimJob(jobId: string): Promise<DelegationJobRow | null> {
+  const client = getSupabaseClient();
+  const { data, error } = await client
+    .from("delegation_jobs")
+    .update({ status: "running", started_at: new Date().toISOString() })
+    .eq("id", jobId)
+    .eq("status", "pending")
+    .select();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const row = (data ?? [])[0];
+  return row ? mapJobRow(row as Record<string, unknown>) : null;
+}
+
+/**
+ * Reset atômico de job running órfão: só reseta se ainda estiver running E
+ * started_at for anterior ao cutoff — evita roubar jobs ativos de outra instância.
+ */
+export async function resetStaleRunningJob(
+  jobId: string,
+  staleBefore: string,
+): Promise<boolean> {
+  const client = getSupabaseClient();
+  const { data, error } = await client
+    .from("delegation_jobs")
+    .update({ status: "pending", started_at: null })
+    .eq("id", jobId)
+    .eq("status", "running")
+    .lt("started_at", staleBefore)
+    .select("id");
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).length > 0;
+}
+
 export async function getJob(jobId: string): Promise<DelegationJobRow | null> {
   const client = getSupabaseClient();
   const { data, error } = await client
@@ -203,11 +248,14 @@ export async function getJobChunks(
   limit = 100,
 ): Promise<Array<{ seq: number; text: string; created_at: string }>> {
   const client = getSupabaseClient();
+  // Filtra sinceSeq NA QUERY (antes do limit) — senão chunks além da primeira
+  // página ficariam inalcançáveis.
   const { data, error } = await client
     .from("job_events")
     .select("payload, created_at")
     .eq("job_id", jobId)
     .eq("event_type", "chunk")
+    .gt("payload->seq", sinceSeq)
     .order("created_at", { ascending: true })
     .limit(limit);
 
@@ -224,5 +272,5 @@ export async function getJobChunks(
         created_at: String(row.created_at),
       };
     })
-    .filter((chunk) => chunk.seq > sinceSeq);
+    .sort((a, b) => a.seq - b.seq);
 }

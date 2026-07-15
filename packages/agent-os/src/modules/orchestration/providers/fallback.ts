@@ -1,3 +1,4 @@
+import { agentOsEnv } from "../../../config/env.js";
 import type { BridgeProvider } from "../client/types.js";
 import {
   runDelegation,
@@ -14,7 +15,7 @@ import {
 export const DEFAULT_FALLBACK_CHAIN: BridgeProvider[] = ["antigravity", "cursor"];
 
 export function isFallbackEnabled(): boolean {
-  return process.env["BRIDGE_FALLBACK_ENABLED"] !== "0";
+  return agentOsEnv("FALLBACK_ENABLED") !== "0";
 }
 
 function resolveChain(preferred: BridgeProvider, chain?: BridgeProvider[]): BridgeProvider[] {
@@ -52,6 +53,16 @@ export async function runDelegationWithFallback(
   const failureLog: Array<{ provider: BridgeProvider; error: string }> = [];
 
   for (const provider of providers) {
+    if (params.signal?.aborted) {
+      return {
+        success: false,
+        message: "Delegação cancelada antes de esgotar a fallback chain.",
+        attemptedProviders: attempted,
+        fallbackUsed: attempted.length > 1,
+        skippedProviders: skipped.length > 0 ? skipped : undefined,
+      };
+    }
+
     if (!isProviderCircuitAvailable(provider)) {
       skipped.push(provider);
       continue;

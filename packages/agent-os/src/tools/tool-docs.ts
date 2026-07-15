@@ -257,10 +257,10 @@ RETURNS: { summary }
 `.trim(),
 
 	rollback_task: `
-DESTRUTIVO: reverte alterações locais com git reset --hard + clean.
-WHEN TO USE: Apenas quando o usuário pedir para descartar mudanças locais.
+Reverte alterações locais via git stash (recuperável). Sem confirm=true retorna só o preview.
+WHEN TO USE: Apenas quando o usuário pedir para descartar mudanças locais — sempre com confirmação dele.
 WHEN NOT: Nunca automaticamente após falha — pergunte antes.
-RETURNS: { message }
+RETURNS: { performed, changes, message, recoveryHint }
 `.trim(),
 
 	run_autofix_loop: `

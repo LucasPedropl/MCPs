@@ -1,6 +1,10 @@
-import { appendJobEvent, getJob, listChildJobs, updateJob } from "./job-store.js";
+import { appendJobEvent, claimJob, getJob, listChildJobs, updateJob } from "./job-store.js";
 import { moveJobToDlq } from "./job-dlq.js";
-import { findOrphanJobIds, prepareJobRetry } from "./job-recovery.js";
+import {
+  findOrphanJobIds,
+  findStalledPendingJobIds,
+  prepareJobRetry,
+} from "./job-recovery.js";
 import { executePipelineJob, resumePipelineJob } from "../pipeline/pipeline-runner.js";
 import type { PipelineJobMetadata } from "../pipeline/types.js";
 import { createJobChunkEmitter } from "../observability/chunk-emitter.js";
@@ -122,16 +126,24 @@ async function runPipelineJob(jobId: string, signal: AbortSignal): Promise<void>
   });
 }
 
+/** true se o job foi cancelado por outra instância enquanto rodávamos aqui. */
+async function wasCancelledElsewhere(jobId: string): Promise<boolean> {
+  try {
+    const current = await getJob(jobId);
+    return current?.status === "cancelled";
+  } catch {
+    return false;
+  }
+}
+
 async function executeJob(jobId: string, signal: AbortSignal): Promise<void> {
-  const job = await getJob(jobId);
-  if (!job || job.status === "cancelled") {
+  // Claim atômico: se outra instância (realtime worker, orphan recovery,
+  // retry) já pegou este job, o UPDATE condicional retorna vazio e saímos.
+  const job = await claimJob(jobId);
+  if (!job) {
     return;
   }
 
-  await updateJob(jobId, {
-    status: "running",
-    started_at: new Date().toISOString(),
-  });
   await appendJobEvent(jobId, "status_change", { status: "running" });
 
   if (signal.aborted) {
@@ -146,10 +158,13 @@ async function executeJob(jobId: string, signal: AbortSignal): Promise<void> {
     }
 
     if (job.mode === "parallel" || job.provider === "parallel") {
-      const parallelResult = await executeParallelJob(jobId);
+      const parallelResult = await executeParallelJob(jobId, signal);
 
       if (signal.aborted) {
         await markCancelled(jobId);
+        return;
+      }
+      if (await wasCancelledElsewhere(jobId)) {
         return;
       }
 
@@ -180,10 +195,14 @@ async function executeJob(jobId: string, signal: AbortSignal): Promise<void> {
       ...jobToDelegationParams(job),
       holder_id: jobId,
       on_chunk: onChunk,
+      signal,
     });
 
     if (signal.aborted) {
       await markCancelled(jobId);
+      return;
+    }
+    if (await wasCancelledElsewhere(jobId)) {
       return;
     }
 
@@ -231,13 +250,17 @@ async function executeJob(jobId: string, signal: AbortSignal): Promise<void> {
 
 export async function recoverOrphanJobs(): Promise<number> {
   const orphanIds = await findOrphanJobIds(isJobRunning);
-  for (const jobId of orphanIds) {
+  const stalledPending = await findStalledPendingJobIds(isJobRunning);
+  const jobIds = [...new Set([...orphanIds, ...stalledPending])];
+  for (const jobId of jobIds) {
     enqueueJob(jobId);
   }
-  if (orphanIds.length > 0) {
-    console.error(`[job-runner] ${orphanIds.length} job(s) órfão(s) reenfileirado(s)`);
+  if (jobIds.length > 0) {
+    console.error(
+      `[job-runner] recovery: ${orphanIds.length} órfão(s) + ${stalledPending.length} pending parado(s) reenfileirado(s)`,
+    );
   }
-  return orphanIds.length;
+  return jobIds.length;
 }
 
 /** Enfileira execução em background (não bloqueia o MCP). */

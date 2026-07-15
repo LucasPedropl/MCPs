@@ -39,6 +39,11 @@ export interface DelegateToCursorInput {
    */
   workspacePath?: string;
   onChunk?: (delta: string) => void | Promise<void>;
+
+  /**
+   * Abort signal — kills the cursor-agent process tree when aborted.
+   */
+  signal?: AbortSignal;
 }
 
 /**

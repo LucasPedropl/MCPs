@@ -2,6 +2,7 @@ import { runDelegation } from "../../tools/delegation.js";
 import { isAntigravityParallelEnabled } from "../../providers/antigravity/config.js";
 import {
   appendJobEvent,
+  claimJob,
   createJob,
   getJob,
   updateJob,
@@ -20,6 +21,7 @@ async function runSingleProvider(
   prompt: string,
   timeout_ms: number,
   lockHolderId: string,
+  signal?: AbortSignal,
 ): Promise<ParallelProviderResult> {
   const started = Date.now();
 
@@ -32,6 +34,7 @@ async function runSingleProvider(
       agentic_mode: spec.agentic_mode ?? false,
       timeout_ms,
       holder_id: `${lockHolderId}:${spec.provider}`,
+      signal,
     });
 
     if (!result.success) {
@@ -79,30 +82,104 @@ function hasAgenticProvider(specs: ParallelProviderSpec[]): boolean {
   return specs.some((spec) => spec.agentic_mode === true);
 }
 
+/**
+ * Executa um provider e, quando há job filho associado, mantém o ciclo de
+ * vida dele no banco (claim → completed/failed) — sem isso os filhos ficariam
+ * "pending" para sempre.
+ */
+async function runProviderWithChildJob(
+  spec: ParallelProviderSpec,
+  childJobId: string | undefined,
+  prompt: string,
+  timeout_ms: number,
+  lockHolderId: string,
+  signal?: AbortSignal,
+): Promise<ParallelProviderResult> {
+  if (childJobId) {
+    const claimed = await claimJob(childJobId).catch(() => null);
+    if (!claimed) {
+      return {
+        provider: spec.provider,
+        success: false,
+        error: "Job filho não estava pending (cancelado ou reivindicado por outra instância).",
+        durationMs: 0,
+      };
+    }
+  }
+
+  const result = await runSingleProvider(spec, prompt, timeout_ms, lockHolderId, signal);
+
+  if (childJobId) {
+    const completedAt = new Date().toISOString();
+    await updateJob(
+      childJobId,
+      result.success
+        ? {
+            status: "completed",
+            response: result.response ?? "",
+            session_id: result.sessionId,
+            model: result.model,
+            completed_at: completedAt,
+          }
+        : {
+            status: "failed",
+            error: result.error ?? "Provider falhou sem mensagem.",
+            completed_at: completedAt,
+          },
+    ).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[parallel] falha ao finalizar job filho ${childJobId}: ${message}`);
+    });
+  }
+
+  return result;
+}
+
 /** Executa providers em paralelo ou sequencial se agentic no workspace principal. */
 async function runAllProviders(
   providers: ParallelProviderSpec[],
   prompt: string,
   timeout_ms: number,
   lockHolderId: string,
+  childJobIds: Array<string | undefined> = [],
+  signal?: AbortSignal,
 ): Promise<ParallelProviderResult[]> {
   const agentic = hasAgenticProvider(providers);
   if (agentic && !canRunAgenticInParallel(providers)) {
     const results: ParallelProviderResult[] = [];
-    for (const spec of providers) {
-      results.push(await runSingleProvider(spec, prompt, timeout_ms, lockHolderId));
+    for (const [index, spec] of providers.entries()) {
+      results.push(
+        await runProviderWithChildJob(
+          spec,
+          childJobIds[index],
+          prompt,
+          timeout_ms,
+          lockHolderId,
+          signal,
+        ),
+      );
     }
     return results;
   }
 
   return Promise.all(
-    providers.map((spec) => runSingleProvider(spec, prompt, timeout_ms, lockHolderId)),
+    providers.map((spec, index) =>
+      runProviderWithChildJob(
+        spec,
+        childJobIds[index],
+        prompt,
+        timeout_ms,
+        lockHolderId,
+        signal,
+      ),
+    ),
   );
 }
 
 /** Executa delegação paralela síncrona para N providers. */
 export async function runParallelDelegation(
   input: ParallelDelegateInput,
+  signal?: AbortSignal,
 ): Promise<ParallelMergeResult> {
   if (input.providers.length === 0) {
     throw new Error("Pelo menos um provider é necessário para delegação paralela.");
@@ -114,6 +191,8 @@ export async function runParallelDelegation(
     input.prompt,
     input.timeout_ms,
     lockHolderId,
+    [],
+    signal,
   );
 
   return mergeParallelResults(input.mergeStrategy, results);
@@ -177,8 +256,11 @@ export async function createParallelJob(
   return { parentJobId: parent.id, childJobIds };
 }
 
-/** Executa job paralelo: roda filhos e faz merge no pai. */
-export async function executeParallelJob(parentJobId: string): Promise<ParallelMergeResult> {
+/** Executa job paralelo: roda filhos (com ciclo de vida no banco) e faz merge no pai. */
+export async function executeParallelJob(
+  parentJobId: string,
+  signal?: AbortSignal,
+): Promise<ParallelMergeResult> {
   const parent = await getJob(parentJobId);
   if (!parent) {
     throw new Error(`Job paralelo ${parentJobId} não encontrado`);
@@ -195,14 +277,16 @@ export async function executeParallelJob(parentJobId: string): Promise<ParallelM
     childCount: childJobIds.length,
   });
 
-  const input: ParallelDelegateInput = {
-    prompt: parent.prompt,
+  const results = await runAllProviders(
     providers,
-    mergeStrategy,
-    timeout_ms: parent.timeout_ms,
-  };
+    parent.prompt,
+    parent.timeout_ms,
+    `parallel-${parentJobId}`,
+    childJobIds,
+    signal,
+  );
 
-  const result = await runParallelDelegation(input);
+  const result = mergeParallelResults(mergeStrategy, results);
 
   await updateJob(parentJobId, {
     metadata: {

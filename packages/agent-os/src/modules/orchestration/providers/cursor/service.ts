@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { killProcessTree } from "@mcps/shared";
 import { findCursorAgentCli, isWindowsScript } from "../../client/cursor-cli.js";
 import { getTargetWorkspacePath } from "../../client/workspace.js";
 import {
@@ -76,6 +77,7 @@ function runCursorAgent(
   model: string,
   timeoutMs: number,
   onChunk?: (delta: string) => void | Promise<void>,
+  signal?: AbortSignal,
 ): Promise<{ stdout: string; stderr: string; exitCode: number | null }> {
   const { command, argsPrefix } = resolveCursorInvocation();
   const args = [
@@ -108,11 +110,24 @@ function runCursorAgent(
     let stdout = "";
     let stderr = "";
     let timedOut = false;
+    let aborted = false;
 
+    // taskkill /t mata a árvore inteira — child.kill() só mataria o cmd.exe
+    // wrapper no Windows, deixando o agente real rodando órfão.
     const timer = setTimeout(() => {
       timedOut = true;
-      child.kill("SIGTERM");
+      killProcessTree(child.pid);
     }, timeoutMs);
+
+    const onAbort = (): void => {
+      aborted = true;
+      killProcessTree(child.pid);
+    };
+    if (signal?.aborted) {
+      onAbort();
+    } else {
+      signal?.addEventListener("abort", onAbort, { once: true });
+    }
 
     child.stdout.on("data", (chunk: Buffer) => {
       const text = chunk.toString("utf8");
@@ -127,11 +142,17 @@ function runCursorAgent(
 
     child.on("error", (error) => {
       clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
       reject(error);
     });
 
     child.on("close", (exitCode) => {
       clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+      if (aborted) {
+        reject(new Error("Cursor Agent cancelado (abort)"));
+        return;
+      }
       if (timedOut) {
         reject(new Error(`Cursor Agent excedeu timeout de ${timeoutMs}ms`));
         return;
@@ -158,6 +179,7 @@ export async function delegateToCursor(
     model,
     timeoutMs,
     input.onChunk,
+    input.signal,
   );
 
   if (exitCode !== 0 && !stdout.trim()) {

@@ -1,3 +1,4 @@
+import { estimateTokens } from "@mcps/shared";
 import { updateJob, getJob } from "./job-store.js";
 import type { BridgeProvider } from "../../client/types.js";
 
@@ -5,27 +6,14 @@ export interface JobMetrics {
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
-  estimatedCostUsd?: number;
   durationMs?: number;
   provider?: BridgeProvider;
 }
 
-const COST_PER_1K_TOKENS: Record<BridgeProvider, number> = {
-  antigravity: 0.002,
-  cursor: 0.003,
-  parallel: 0.002,
-  pipeline: 0.002,
-};
-
-/** Estima tokens (~4 chars/token). */
-export function estimateTokens(text: string): number {
-  if (!text) {
-    return 0;
-  }
-  return Math.ceil(text.length / 4);
-}
-
-/** Calcula métricas estimadas a partir de prompt/resposta. */
+/**
+ * Calcula métricas estimadas a partir de prompt/resposta.
+ * Sem custo em USD: Antigravity/Cursor são assinatura — qualquer valor seria inventado.
+ */
 export function buildJobMetrics(params: {
   provider: BridgeProvider;
   prompt: string;
@@ -34,15 +22,12 @@ export function buildJobMetrics(params: {
 }): JobMetrics {
   const promptTokens = estimateTokens(params.prompt);
   const completionTokens = estimateTokens(params.response);
-  const totalTokens = promptTokens + completionTokens;
-  const rate = COST_PER_1K_TOKENS[params.provider] ?? 0.002;
 
   return {
     provider: params.provider,
     promptTokens,
     completionTokens,
-    totalTokens,
-    estimatedCostUsd: Number(((totalTokens / 1000) * rate).toFixed(6)),
+    totalTokens: promptTokens + completionTokens,
     durationMs: params.durationMs,
   };
 }

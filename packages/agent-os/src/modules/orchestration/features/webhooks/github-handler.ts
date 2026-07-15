@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { agentOsEnv } from "../../../../config/env.js";
 import { resolveWorkspacePath } from "../../client/workspace-resolve.js";
 import { getTargetWorkspacePath } from "../../client/workspace.js";
 import { createJob, appendJobEvent } from "../jobs/job-store.js";
@@ -213,6 +214,6 @@ export async function handleGitHubWebhook(
 
 /** Retorna o webhook secret configurado via env, ou null se ausente. */
 export function getWebhookSecret(): string | null {
-  const raw = process.env["BRIDGE_GITHUB_WEBHOOK_SECRET"];
+  const raw = agentOsEnv("GITHUB_WEBHOOK_SECRET");
   return raw?.trim() || null;
 }

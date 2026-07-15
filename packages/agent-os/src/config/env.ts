@@ -1,7 +1,5 @@
 /** Unified env resolution for Agent OS (with legacy BRIDGE_* / SUPABASE_HUB_* fallbacks). */
 
-const DEFAULT_SUPABASE_URL = "https://xrjjzyfevbuuxeundgds.supabase.co";
-
 export function envFirst(...keys: string[]): string | undefined {
   for (const key of keys) {
     const value = process.env[key]?.trim();
@@ -12,14 +10,21 @@ export function envFirst(...keys: string[]): string | undefined {
   return undefined;
 }
 
-export function getAgentOsSupabaseUrl(): string {
+/** Lê env com prefixo novo AGENT_OS_ e fallback no legado BRIDGE_. */
+export function agentOsEnv(suffix: string): string | undefined {
+  return envFirst(`AGENT_OS_${suffix}`, `BRIDGE_${suffix}`);
+}
+
+/** Sem default embutido: URL de projeto pessoal hardcoded faria qualquer
+ * instalação sem env conectar no Supabase errado. */
+export function getAgentOsSupabaseUrl(): string | null {
   return (
     envFirst(
       "AGENT_OS_SUPABASE_URL",
       "BRIDGE_SUPABASE_URL",
       "NEXT_PUBLIC_SUPABASE_URL",
       "SUPABASE_URL",
-    ) ?? DEFAULT_SUPABASE_URL
+    ) ?? null
   );
 }
 

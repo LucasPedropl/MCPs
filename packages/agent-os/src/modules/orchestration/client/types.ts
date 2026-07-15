@@ -86,6 +86,7 @@ export interface PollOptions {
   intervalMs?: number;
   timeoutMs?: number;
   agenticMode?: boolean;
+  signal?: AbortSignal;
   onProgress?: (partial: { response: string; stepCount: number }) => void | Promise<void>;
 }
 

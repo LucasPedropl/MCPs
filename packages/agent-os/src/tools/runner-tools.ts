@@ -33,9 +33,15 @@ export function registerRunnerTools(server: McpServer): void {
     "rollback_task",
     {
       description: describeAgentTool("rollback_task"),
-      inputSchema: { workspace_path: z.string() },
+      inputSchema: {
+        workspace_path: z.string(),
+        confirm: z
+          .boolean()
+          .optional()
+          .describe("Obrigatório true para executar; sem ele retorna apenas o preview"),
+      },
     },
-    async (args) => jsonText({ message: await rollbackTask(args.workspace_path) }),
+    async (args) => jsonText(await rollbackTask(args.workspace_path, args.confirm ?? false)),
   );
 
   server.registerTool(
