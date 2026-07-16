@@ -2,8 +2,9 @@
 
 import React from 'react';
 import { usePathname } from 'next/navigation';
-import { PanelLeft, Search, HelpCircle, Sun, Moon } from 'lucide-react';
+import { Menu, Search, HelpCircle, Sun, Moon, LogOut } from 'lucide-react';
 import { useTheme } from './ThemeContext';
+import { useLogout } from '@/features/auth/hooks/useAuth';
 
 interface TopbarProps {
   onToggleSidebar: () => void;
@@ -12,6 +13,7 @@ interface TopbarProps {
 
 const BREADCRUMB_LABELS: Record<string, string> = {
   '/agent-os': 'Overview',
+  '/agent-os/usage': 'Usage',
   '/agent-os/mcp-servers': 'APIs OpenAPI',
   '/agent-os/hub': 'MCP Hub',
   '/agent-os/jobs': 'Orquestração',
@@ -48,6 +50,7 @@ export function Topbar({ onToggleSidebar, isSidebarOpen }: TopbarProps) {
   const { theme, toggleTheme } = useTheme();
   const pathname = usePathname();
   const section = resolveSection(pathname);
+  const { logout, isLoggingOut } = useLogout();
 
   return (
     <header className="h-14 border-b border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#000000] px-4 flex items-center justify-between transition-colors z-10 flex-shrink-0">
@@ -57,7 +60,7 @@ export function Topbar({ onToggleSidebar, isSidebarOpen }: TopbarProps) {
           className="p-1.5 rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors focus:outline-none"
           title={isSidebarOpen ? 'Recolher Menu' : 'Expandir Menu'}
         >
-          <PanelLeft className="w-5 h-5" />
+          <Menu className="w-5 h-5" />
         </button>
         <div className="flex items-center gap-2 text-sm font-medium">
           <span className="text-zinc-900 dark:text-white font-semibold tracking-tight">Agent OS</span>
@@ -84,6 +87,17 @@ export function Topbar({ onToggleSidebar, isSidebarOpen }: TopbarProps) {
           title="Alternar Tema"
         >
           {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => void logout()}
+          disabled={isLoggingOut}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors disabled:opacity-50"
+          title="Sair"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">{isLoggingOut ? 'Saindo…' : 'Sair'}</span>
         </button>
       </div>
     </header>

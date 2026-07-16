@@ -23,15 +23,27 @@ Abra [http://localhost:3000/agent-os](http://localhost:3000/agent-os).
 | Variável | Obrigatória | Descrição |
 |----------|-------------|-----------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Sim | URL do projeto Supabase |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Sim | Chave anon (client-side) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Sim | Chave anon (login + client) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Sim | Service role (API routes server-side) |
+| `DASHBOARD_SESSION_SECRET` | Não | Segredo HMAC do cookie (≥16 chars). Se omitido, usa a service role |
 | `NEXT_PUBLIC_API_URL` | Não | URL do gateway SSE legado (default `localhost:3001`) |
 
+### Auth
+
+- **Credenciais** ficam no **Supabase Auth** (não no `.env`)
+- Login: [`/login`](http://localhost:3000/login) → `signInWithPassword` → cookie httpOnly `agent_os_session`
+- **Lembrar-me**: cookie ~30 dias (12h sem marcar)
+- Logout: botão **Sair** no topbar
+- Crie o usuário em Authentication → Users (ou via Admin API / script de seed)
+
+Sem Supabase configurado, o middleware **bloqueia** o painel (fail-closed).
 ## Rotas principais
 
 | Rota | Descrição |
 |------|-----------|
+| `/login` | Login do dashboard |
 | `/agent-os` | Overview |
+| `/agent-os/usage` | Telemetria de tools |
 | `/agent-os/memory` | Preferências, decisões, pitfalls |
 | `/agent-os/knowledge` | Hub skills/playbooks |
 | `/agent-os/hub` | Conexões MCP lazy |
@@ -41,6 +53,8 @@ Abra [http://localhost:3000/agent-os](http://localhost:3000/agent-os).
 
 ## API routes
 
-Namespace `/api/agent-os/*` — CRUD de memória, knowledge, hub, jobs, settings.
+Namespace `/api/agent-os/*` — CRUD de memória, knowledge, hub, jobs, settings (exige sessão).
+
+Auth: `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`.
 
 Rotas OpenAPI legadas: `/api/parse-swagger`, `/api/sync-server`, `/api/run-test-case`.
