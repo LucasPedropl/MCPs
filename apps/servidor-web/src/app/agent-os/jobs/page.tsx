@@ -20,7 +20,7 @@ const STATUS_FILTERS = ['all', 'pending', 'running', 'completed', 'failed', 'can
 
 export default function JobsPage() {
   return (
-    <Suspense fallback={<p className="text-sm text-zinc-500 p-6">Carregando jobs...</p>}>
+    <Suspense fallback={<p className="text-sm text-ink-muted p-6">Carregando jobs...</p>}>
       <JobsPageContent />
     </Suspense>
   );
@@ -54,14 +54,16 @@ function JobsPageContent() {
     <div className="max-w-5xl mx-auto space-y-6">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <ListTodo className="w-6 h-6" /> Orquestração
+          <h1 className="text-2xl font-semibold tracking-tight text-ink flex items-center gap-2">
+            <ListTodo className="w-6 h-6 text-accent" aria-hidden /> Jobs
           </h1>
-          <p className="text-sm text-zinc-500 mt-1">Jobs de delegação Cursor ↔ Antigravity ↔ Copilot.</p>
+          <p className="text-sm text-ink-muted mt-1">
+            Delegações Cursor ↔ Antigravity e pipelines.
+          </p>
         </div>
         <button
           onClick={load}
-          className="p-2 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 self-start"
+          className="p-2 rounded-lg border border-subtle hover:bg-elevated self-start"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
@@ -74,8 +76,8 @@ function JobsPageContent() {
             onClick={() => setFilter(status)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
               filter === status
-                ? 'bg-zinc-900 dark:bg-white text-white dark:text-black'
-                : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400'
+                ? 'bg-accent text-accent-fg'
+                : 'bg-elevated text-ink-muted'
             }`}
           >
             {status === 'all' ? 'Todos' : status}
@@ -84,9 +86,9 @@ function JobsPageContent() {
       </div>
 
       {loading && jobs.length === 0 ? (
-        <p className="text-sm text-zinc-500">Carregando...</p>
+        <p className="text-sm text-ink-muted">Carregando...</p>
       ) : jobs.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 p-8 text-center text-sm text-zinc-500">
+        <div className="rounded-lg border border-dashed border-subtle p-8 text-center text-sm text-ink-muted">
           Nenhum job encontrado.
         </div>
       ) : (
@@ -95,17 +97,17 @@ function JobsPageContent() {
             <Link
               key={job.id}
               href={`/agent-os/jobs/${job.id}`}
-              className="block rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 text-sm hover:border-zinc-400 dark:hover:border-zinc-600 transition-colors"
+              className="block rounded-lg border border-subtle bg-panel p-4 text-sm hover:border-strong transition-colors"
             >
               <div className="flex flex-wrap items-center gap-2 text-xs mb-2">
-                <span className="font-mono text-zinc-500">{job.id.slice(0, 8)}…</span>
-                <span className="px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-900">{job.status}</span>
-                <span className="text-zinc-500">{job.provider ?? '—'}</span>
-                <span className="text-zinc-400 ml-auto">
+                <span className="font-mono text-ink-muted">{job.id.slice(0, 8)}…</span>
+                <span className="px-2 py-0.5 rounded bg-elevated">{job.status}</span>
+                <span className="text-ink-muted">{job.provider ?? '—'}</span>
+                <span className="text-ink-muted ml-auto">
                   {new Date(job.created_at).toLocaleString('pt-BR')}
                 </span>
               </div>
-              <p className="text-zinc-700 dark:text-zinc-300 line-clamp-2">{job.prompt ?? '—'}</p>
+              <p className="text-ink line-clamp-2">{job.prompt ?? '—'}</p>
               {job.error && (
                 <p className="text-xs text-red-500 mt-2 truncate">{job.error}</p>
               )}

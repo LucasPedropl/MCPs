@@ -43,7 +43,7 @@ const TEXT_EXTENSIONS = new Set([
   ".d.ts",
 ]);
 
-const SIDECAR_DIRS = new Set(["scripts", "references", "assets"]);
+const SIDECAR_DIRS = new Set(["scripts", "references", "assets", "data"]);
 const SKIP_DIR_NAMES = new Set(["node_modules", ".git"]);
 
 function toPosixRelative(fromDir: string, absolutePath: string): string {
@@ -80,7 +80,7 @@ function shouldSkipFile(name: string, relativePosix: string): boolean {
 
 /**
  * Decide se um path relativo (POSIX) deve ser incluído no bundle.
- * Inclui: scripts/**, references/**, assets/** e arquivos soltos na raiz
+ * Inclui: scripts/**, references/**, assets/**, data/** e arquivos soltos na raiz
  * (exceto SKILL.md).
  */
 export function isSkillSidecarPath(relativePosix: string): boolean {

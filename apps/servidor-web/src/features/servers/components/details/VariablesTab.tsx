@@ -57,7 +57,7 @@ export function VariablesTab({ serverId }: VariablesTabProps) {
           className="p-5 border-zinc-200 dark:border-zinc-800/80 overflow-hidden"
         >
           <div className="flex items-center gap-2 mb-3">
-            <FileText className="w-4 h-4 text-indigo-500" />
+            <FileText className="w-4 h-4 text-accent" />
             <h4 className="text-sm font-semibold text-zinc-900 dark:text-white">{tc.name}</h4>
           </div>
           <pre className="p-4 rounded-xl bg-zinc-50 dark:bg-[#050505] border border-zinc-200 dark:border-zinc-800 text-xs font-mono text-zinc-800 dark:text-zinc-200 overflow-x-auto">

@@ -28,16 +28,15 @@ export function UsageCoverageRing({
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="currentColor"
+          stroke="var(--surface-elevated)"
           strokeWidth={stroke}
-          className="text-zinc-100 dark:text-zinc-900"
         />
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="#22d3ee"
+          stroke="var(--accent)"
           strokeWidth={stroke}
           strokeDasharray={`${filled} ${circumference - filled}`}
           strokeLinecap="round"
@@ -48,15 +47,15 @@ export function UsageCoverageRing({
           x={size / 2}
           y={size / 2 + 5}
           textAnchor="middle"
-          className="fill-zinc-900 dark:fill-white font-semibold"
-          style={{ fontSize: 16 }}
+          fill="var(--text-primary)"
+          style={{ fontSize: 16, fontWeight: 600 }}
         >
           {clamped}%
         </text>
       </svg>
       <div>
-        <div className="text-xs text-zinc-500">Coverage do catálogo</div>
-        <div className="text-sm font-medium tabular-nums mt-0.5">
+        <div className="text-xs text-ink-muted">Coverage do catálogo</div>
+        <div className="text-sm font-medium tabular-nums mt-0.5 text-ink">
           {touched}/{registered} tools tocadas
         </div>
       </div>

@@ -31,8 +31,8 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
       suppressHydrationWarning
     >
-      <body 
-        className="h-full bg-white dark:bg-black text-zinc-900 dark:text-white selection:bg-zinc-200 dark:selection:bg-zinc-800 transition-colors"
+      <body
+        className="h-full bg-canvas text-ink selection:bg-accent-muted transition-colors"
         suppressHydrationWarning
       >
         <ThemeProvider>

@@ -90,7 +90,7 @@ export function CategoriesTab({
       <Card className="p-6 border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#0a0a0a]">
         <CardHeader className="px-0 pt-0 pb-4 border-b border-zinc-200 dark:border-zinc-800/60 mb-4">
           <CardTitle className="text-base flex items-center gap-2 text-zinc-900 dark:text-white">
-            <FolderPlus className="w-4 h-4 text-indigo-500" />
+            <FolderPlus className="w-4 h-4 text-accent" />
             Criar Nova Categoria
           </CardTitle>
           <CardDescription className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
@@ -160,7 +160,7 @@ export function CategoriesTab({
                         <h4 className="text-sm font-semibold text-zinc-900 dark:text-white flex items-center gap-2 truncate">
                           <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
                           <span>{cat.name}</span>
-                          <span className="px-2 py-0.5 text-[10px] rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold ml-2">
+                          <span className="px-2 py-0.5 text-[10px] rounded-full bg-indigo-500/10 text-accent font-bold ml-2">
                             {catTools.length} {catTools.length === 1 ? 'ferramenta' : 'ferramentas'}
                           </span>
                         </h4>

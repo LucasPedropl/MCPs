@@ -31,7 +31,7 @@ export function ServerDetailsHeader({
   return (
     <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800/80 pb-6 transition-colors">
       <div className="flex items-center gap-4">
-        <div className="p-3 rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-black shadow-sm transition-colors">
+        <div className="p-3 rounded-2xl bg-accent-muted text-accent ring-1 ring-accent/30 shadow-sm transition-colors">
           <Server className="w-6 h-6" />
         </div>
         <div>

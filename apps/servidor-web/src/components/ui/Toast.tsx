@@ -35,21 +35,32 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={toast.id}
             className={cn(
-              "pointer-events-auto flex items-center gap-3 p-4 rounded-xl border backdrop-blur-md shadow-2xl transition-all duration-300 animate-in fade-in slide-in-from-top-5",
-              toast.type === 'success' && "bg-emerald-950/80 border-emerald-500/30 text-emerald-200",
-              toast.type === 'error' && "bg-rose-950/80 border-rose-500/30 text-rose-200",
-              toast.type === 'info' && "bg-slate-900/80 border-slate-700/50 text-slate-200"
+              'pointer-events-auto flex items-center gap-3 p-4 rounded-lg border shadow-[var(--shadow-panel)] transition-all duration-300 animate-in fade-in slide-in-from-top-5',
+              toast.type === 'success' &&
+                'bg-panel border-success/30 text-success',
+              toast.type === 'error' &&
+                'bg-panel border-danger/30 text-danger',
+              toast.type === 'info' &&
+                'bg-panel border-subtle text-ink',
             )}
           >
-            {toast.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />}
-            {toast.type === 'error' && <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />}
-            {toast.type === 'info' && <Info className="w-5 h-5 text-slate-400 shrink-0" />}
+            {toast.type === 'success' && (
+              <CheckCircle2 className="w-5 h-5 text-success shrink-0" aria-hidden />
+            )}
+            {toast.type === 'error' && (
+              <AlertCircle className="w-5 h-5 text-danger shrink-0" aria-hidden />
+            )}
+            {toast.type === 'info' && (
+              <Info className="w-5 h-5 text-accent shrink-0" aria-hidden />
+            )}
             <p className="text-sm font-medium flex-1">{toast.message}</p>
             <button
+              type="button"
               onClick={() => setToasts((p) => p.filter((t) => t.id !== toast.id))}
-              className="text-slate-400 hover:text-white transition-colors"
+              className="text-ink-muted hover:text-ink transition-colors min-h-9 min-w-9 inline-flex items-center justify-center"
+              aria-label="Fechar notificação"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4" aria-hidden />
             </button>
           </div>
         ))}

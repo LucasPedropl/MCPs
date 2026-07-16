@@ -42,7 +42,7 @@ export function ObservabilityCard({ serverId }: ObservabilityCardProps) {
     <Card className="lg:col-span-2">
       <CardHeader className="pb-4 border-b border-zinc-200 dark:border-zinc-800 mb-4">
         <CardTitle className="text-base flex items-center gap-2">
-          <BarChart2 className="w-4 h-4 text-indigo-500" />
+          <BarChart2 className="w-4 h-4 text-accent" />
           Observabilidade
         </CardTitle>
       </CardHeader>

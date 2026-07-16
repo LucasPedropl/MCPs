@@ -4,10 +4,10 @@ import React from 'react';
 import type { HostUsageRow } from '../types/usage';
 
 const HOST_COLORS: Record<string, string> = {
-  cursor: '#22d3ee',
+  cursor: '#14b8a6',
   antigravity: '#fbbf24',
   claude_code: '#fb7185',
-  unknown: '#71717a',
+  unknown: '#8b949e',
 };
 
 interface UsageHostChartProps {
@@ -17,7 +17,7 @@ interface UsageHostChartProps {
 export function UsageHostChart({ rows }: UsageHostChartProps) {
   if (rows.length === 0) {
     return (
-      <p className="text-xs text-zinc-500 py-8 text-center">
+      <p className="text-xs text-ink-muted py-8 text-center">
         Sem dados de host nesta janela.
       </p>
     );
@@ -56,9 +56,8 @@ export function UsageHostChart({ rows }: UsageHostChartProps) {
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="currentColor"
+          stroke="var(--surface-elevated)"
           strokeWidth={stroke}
-          className="text-zinc-100 dark:text-zinc-900"
         />
         {arcs.map((arc) => (
           <circle
@@ -80,8 +79,8 @@ export function UsageHostChart({ rows }: UsageHostChartProps) {
           x={size / 2}
           y={size / 2 - 6}
           textAnchor="middle"
-          className="fill-zinc-900 dark:fill-white text-2xl font-semibold"
-          style={{ fontSize: 28 }}
+          fill="var(--text-primary)"
+          style={{ fontSize: 28, fontWeight: 600 }}
         >
           {total}
         </text>
@@ -89,7 +88,7 @@ export function UsageHostChart({ rows }: UsageHostChartProps) {
           x={size / 2}
           y={size / 2 + 16}
           textAnchor="middle"
-          className="fill-zinc-500"
+          fill="var(--text-muted)"
           style={{ fontSize: 11 }}
         >
           calls
@@ -98,15 +97,18 @@ export function UsageHostChart({ rows }: UsageHostChartProps) {
 
       <ul className="w-full space-y-2.5">
         {arcs.map((arc) => (
-          <li key={arc.host} className="flex items-center justify-between gap-3 text-xs">
+          <li
+            key={arc.host}
+            className="flex items-center justify-between gap-3 text-xs"
+          >
             <span className="flex items-center gap-2 min-w-0">
               <span
                 className="w-2.5 h-2.5 rounded-full shrink-0"
                 style={{ backgroundColor: arc.color }}
               />
-              <span className="font-mono truncate">{arc.host}</span>
+              <span className="font-mono truncate text-ink">{arc.host}</span>
             </span>
-            <span className="tabular-nums text-zinc-500 shrink-0">
+            <span className="tabular-nums text-ink-muted shrink-0">
               {arc.calls} · {arc.pct}%
               {arc.errors > 0 ? ` · ${arc.errors} err` : ''}
             </span>

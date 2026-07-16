@@ -56,14 +56,14 @@ export default function McpServersPage() {
 
   return (
     <main className="flex-1 flex flex-col gap-8 max-w-7xl w-full mx-auto animate-in fade-in duration-500">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800/80 pb-6">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-subtle pb-6">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-black shadow-sm">
-            <Cpu className="w-6 h-6" />
+          <div className="p-2.5 rounded-lg bg-accent-muted ring-1 ring-accent/30 text-accent">
+            <Cpu className="w-6 h-6" aria-hidden />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">APIs OpenAPI → MCP</h1>
-            <p className="text-sm text-zinc-500">
+            <h1 className="text-2xl font-semibold tracking-tight text-ink">APIs OpenAPI → MCP</h1>
+            <p className="text-sm text-ink-muted">
               Cadastre Swagger, configure auth e exponha via hub do Agent OS (sem mcp.json por API).
             </p>
           </div>
@@ -71,23 +71,23 @@ export default function McpServersPage() {
 
         <button
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-black font-medium text-sm hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors shadow-sm self-start md:self-auto"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-accent text-accent-fg font-medium text-sm hover:opacity-90 transition-colors shadow-sm self-start md:self-auto"
         >
           <Server className="w-4 h-4" /> Importar Swagger
         </button>
       </header>
 
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/50 p-4 text-xs text-zinc-600 dark:text-zinc-400">
+      <div className="rounded-lg border border-subtle bg-elevated p-4 text-xs text-ink-muted">
         Após criar um servidor, peça ao agente:{' '}
-        <code className="font-mono bg-zinc-200 dark:bg-zinc-900 px-1 rounded">register_mcp_servers</code>{' '}
+        <code className="font-mono bg-elevated px-1 rounded">register_mcp_servers</code>{' '}
         ou{' '}
-        <code className="font-mono bg-zinc-200 dark:bg-zinc-900 px-1 rounded">sync_openapi_mcp</code>{' '}
+        <code className="font-mono bg-elevated px-1 rounded">sync_openapi_mcp</code>{' '}
         com o server_id.
       </div>
 
       <SwaggerIngestionModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
         <div className="space-y-4">
-          <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          <h4 className="text-sm font-medium text-ink">
             Cole a URL da documentação OpenAPI ou Swagger (JSON/YAML)
           </h4>
           <SwaggerInputForm onSubmitUrl={onSubmitUrl} isLoading={isIngesting} />

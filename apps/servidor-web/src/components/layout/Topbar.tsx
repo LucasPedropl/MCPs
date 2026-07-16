@@ -2,24 +2,26 @@
 
 import React from 'react';
 import { usePathname } from 'next/navigation';
-import { Menu, Search, HelpCircle, Sun, Moon, LogOut } from 'lucide-react';
+import { Menu, Sun, Moon, LogOut, X } from 'lucide-react';
 import { useTheme } from './ThemeContext';
 import { useLogout } from '@/features/auth/hooks/useAuth';
 
 interface TopbarProps {
   onToggleSidebar: () => void;
   isSidebarOpen: boolean;
+  isMobileNavOpen?: boolean;
 }
 
 const BREADCRUMB_LABELS: Record<string, string> = {
-  '/agent-os': 'Overview',
-  '/agent-os/usage': 'Usage',
+  '/agent-os': 'Visão geral',
+  '/agent-os/usage': 'Uso',
   '/agent-os/mcp-servers': 'APIs OpenAPI',
-  '/agent-os/hub': 'MCP Hub',
-  '/agent-os/jobs': 'Orquestração',
+  '/agent-os/hub': 'Hub MCP',
+  '/agent-os/jobs': 'Jobs',
   '/agent-os/memory': 'Memória',
   '/agent-os/knowledge/playbooks': 'Playbooks',
   '/agent-os/knowledge/skills': 'Skills',
+  '/agent-os/knowledge': 'Conhecimento',
   '/agent-os/settings': 'Configurações',
   '/agent-os/projects': 'Projetos',
 };
@@ -35,6 +37,10 @@ function resolveSection(pathname: string | null): string {
     return 'Detalhe do Job';
   }
 
+  if (/^\/agent-os\/projects\/[^/]+$/.test(pathname)) {
+    return pathname.endsWith('/new') ? 'Novo projeto' : 'Detalhe do projeto';
+  }
+
   const sorted = Object.entries(BREADCRUMB_LABELS).sort(
     (a, b) => b[0].length - a[0].length,
   );
@@ -46,58 +52,74 @@ function resolveSection(pathname: string | null): string {
   return match?.[1] ?? 'Agent OS';
 }
 
-export function Topbar({ onToggleSidebar, isSidebarOpen }: TopbarProps) {
+export function Topbar({
+  onToggleSidebar,
+  isSidebarOpen,
+  isMobileNavOpen = false,
+}: TopbarProps) {
   const { theme, toggleTheme } = useTheme();
   const pathname = usePathname();
   const section = resolveSection(pathname);
   const { logout, isLoggingOut } = useLogout();
 
   return (
-    <header className="h-14 border-b border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#000000] px-4 flex items-center justify-between transition-colors z-10 flex-shrink-0">
-      <div className="flex items-center gap-3">
+    <header className="h-14 border-b border-subtle bg-panel px-3 sm:px-4 flex items-center justify-between transition-colors z-10 flex-shrink-0">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         <button
+          type="button"
           onClick={onToggleSidebar}
-          className="p-1.5 rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors focus:outline-none"
-          title={isSidebarOpen ? 'Recolher Menu' : 'Expandir Menu'}
+          className="inline-flex items-center justify-center min-h-11 min-w-11 rounded-md text-ink-muted hover:bg-elevated hover:text-ink transition-colors"
+          aria-label={
+            isMobileNavOpen
+              ? 'Fechar menu'
+              : isSidebarOpen
+                ? 'Recolher menu'
+                : 'Expandir menu'
+          }
+          aria-expanded={isSidebarOpen || isMobileNavOpen}
         >
-          <Menu className="w-5 h-5" />
+          {isMobileNavOpen ? (
+            <X className="w-5 h-5" aria-hidden />
+          ) : (
+            <Menu className="w-5 h-5" aria-hidden />
+          )}
         </button>
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <span className="text-zinc-900 dark:text-white font-semibold tracking-tight">Agent OS</span>
-          <span className="text-zinc-400 dark:text-zinc-600">/</span>
-          <span className="text-zinc-500 dark:text-zinc-400 truncate max-w-[200px] sm:max-w-xs">
+        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm font-medium min-w-0">
+          <span className="text-ink font-semibold tracking-tight shrink-0">Agent OS</span>
+          <span className="text-ink-muted/50" aria-hidden>
+            /
+          </span>
+          <span className="text-ink-muted truncate max-w-[160px] sm:max-w-xs">
             {section}
           </span>
-        </div>
+        </nav>
       </div>
 
-      <div className="flex items-center gap-3">
-        <button className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#0a0a0a] text-xs text-zinc-500 dark:text-zinc-400">
-          <Search className="w-3.5 h-3.5" />
-          <span>Buscar</span>
-        </button>
-
-        <button className="p-1.5 rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors">
-          <HelpCircle className="w-4 h-4" />
-        </button>
-
+      <div className="flex items-center gap-1 sm:gap-1.5">
         <button
+          type="button"
           onClick={toggleTheme}
-          className="p-1.5 rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
-          title="Alternar Tema"
+          className="inline-flex items-center justify-center min-h-11 min-w-11 rounded-md text-ink-muted hover:bg-elevated hover:text-ink transition-colors"
+          aria-label={theme === 'light' ? 'Ativar tema escuro' : 'Ativar tema claro'}
         >
-          {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+          {theme === 'light' ? (
+            <Moon className="w-4 h-4" aria-hidden />
+          ) : (
+            <Sun className="w-4 h-4" aria-hidden />
+          )}
         </button>
 
         <button
           type="button"
           onClick={() => void logout()}
           disabled={isLoggingOut}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors disabled:opacity-50"
-          title="Sair"
+          className="inline-flex items-center justify-center gap-1.5 min-h-11 px-3 rounded-md text-sm text-ink-muted hover:bg-elevated hover:text-ink transition-colors disabled:opacity-50"
+          aria-label="Sair"
         >
-          <LogOut className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">{isLoggingOut ? 'Saindo…' : 'Sair'}</span>
+          <LogOut className="w-4 h-4" aria-hidden />
+          <span className="hidden sm:inline">
+            {isLoggingOut ? 'Saindo…' : 'Sair'}
+          </span>
         </button>
       </div>
     </header>

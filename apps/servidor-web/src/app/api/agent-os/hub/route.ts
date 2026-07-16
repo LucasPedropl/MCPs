@@ -22,7 +22,7 @@ const HUB_PRESETS = [
     transport: "stdio",
     config_json: {
       command: "npx",
-      args: ["-y", "@vercel/mcp-server"],
+      args: ["-y", "vercel-platform-mcp-server"],
       env: { VERCEL_TOKEN: "${VERCEL_TOKEN}" },
     },
   },

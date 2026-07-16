@@ -526,7 +526,7 @@ export function TestsTab({ serverId, tools, authCredentials }: TestsTabProps) {
         <Card className="p-5 border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#0a0a0a] flex flex-col justify-between">
           <div>
             <h3 className="text-sm font-semibold text-zinc-950 dark:text-zinc-50 flex items-center gap-2">
-              <Gauge className="w-4 h-4 text-indigo-500" />
+              <Gauge className="w-4 h-4 text-accent" />
               Testes de Carga / Estresse
             </h3>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
@@ -547,7 +547,7 @@ export function TestsTab({ serverId, tools, authCredentials }: TestsTabProps) {
         <Card className="p-6 border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#0a0a0a] animate-in slide-in-from-top-4 duration-300">
           <CardHeader className="px-0 pt-0 pb-4 border-b border-zinc-200 dark:border-zinc-800/60 mb-5">
             <CardTitle className="text-base flex items-center gap-2 text-zinc-900 dark:text-white">
-              <Cpu className="w-4 h-4 text-indigo-500" />
+              <Cpu className="w-4 h-4 text-accent" />
               Executar Teste de Carga
             </CardTitle>
             <CardDescription className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -617,7 +617,7 @@ export function TestsTab({ serverId, tools, authCredentials }: TestsTabProps) {
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1 flex items-center justify-between">
                   <span>Body Payload (JSON)</span>
-                  <span className="text-[10px] text-indigo-500 font-normal">Suporta {'{{$randomCPF}}'}, {'{{$randomCNPJ}}'}, {'{{$randomEmail}}'}</span>
+                  <span className="text-[10px] text-accent font-normal">Suporta {'{{$randomCPF}}'}, {'{{$randomCNPJ}}'}, {'{{$randomEmail}}'}</span>
                 </label>
                 <textarea 
                   value={stressBody}
@@ -650,7 +650,7 @@ export function TestsTab({ serverId, tools, authCredentials }: TestsTabProps) {
               <Button 
                 type="submit" 
                 disabled={stressLoading || !stressEndpoint} 
-                className="rounded-xl px-5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2"
+                className="rounded-xl px-5 text-xs font-semibold bg-accent hover:opacity-90 text-white flex items-center gap-2"
               >
                 {stressLoading ? (
                   <>
@@ -693,7 +693,7 @@ export function TestsTab({ serverId, tools, authCredentials }: TestsTabProps) {
                     </div>
                     <div className="bg-zinc-50 dark:bg-zinc-900/40 p-3 rounded-xl border border-zinc-100 dark:border-zinc-800/40">
                       <p className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-semibold">Latência Média</p>
-                      <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400 mt-0.5">{stressResult.responseTimeMs.avg} ms</p>
+                      <p className="text-lg font-bold text-accent mt-0.5">{stressResult.responseTimeMs.avg} ms</p>
                     </div>
                     <div className="bg-zinc-50 dark:bg-zinc-900/40 p-3 rounded-xl border border-zinc-100 dark:border-zinc-800/40">
                       <p className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-semibold">Percentil p90</p>
@@ -728,7 +728,7 @@ export function TestsTab({ serverId, tools, authCredentials }: TestsTabProps) {
         <Card className="p-6 border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#0a0a0a] animate-in slide-in-from-top-4 duration-300">
           <CardHeader className="px-0 pt-0 pb-4 border-b border-zinc-200 dark:border-zinc-800/60 mb-5">
             <CardTitle className="text-base flex items-center gap-2 text-zinc-900 dark:text-white">
-              <Sparkles className="w-4 h-4 text-indigo-500" />
+              <Sparkles className="w-4 h-4 text-accent" />
               {editingId ? 'Editar Caso de Teste' : 'Novo Caso de Teste de Regressão'}
             </CardTitle>
             <CardDescription className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -776,7 +776,7 @@ export function TestsTab({ serverId, tools, authCredentials }: TestsTabProps) {
                 <Button 
                   type="button" 
                   onClick={handleAddStep}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-2.5 py-1 text-[11px] font-semibold flex items-center gap-1.5"
+                  className="bg-accent hover:opacity-90 text-white rounded-lg px-2.5 py-1 text-[11px] font-semibold flex items-center gap-1.5"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   Adicionar Passo
@@ -885,7 +885,7 @@ export function TestsTab({ serverId, tools, authCredentials }: TestsTabProps) {
               </Button>
               <Button 
                 type="submit" 
-                className="rounded-xl px-5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5"
+                className="rounded-xl px-5 text-xs font-semibold bg-accent hover:opacity-90 text-white flex items-center gap-1.5"
               >
                 <Save className="w-4 h-4" />
                 Salvar Caso de Teste
@@ -1000,7 +1000,7 @@ export function TestsTab({ serverId, tools, authCredentials }: TestsTabProps) {
                         <Button 
                           onClick={() => handleRun(tc.id)} 
                           disabled={isRunning}
-                          className="rounded-xl py-2 px-4 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5"
+                          className="rounded-xl py-2 px-4 text-xs font-semibold bg-accent hover:opacity-90 text-white flex items-center gap-1.5"
                         >
                           {isRunning ? (
                             <>

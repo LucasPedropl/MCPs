@@ -42,7 +42,7 @@ const SCOPE_OPTIONS = [
 ];
 
 const inputClass =
-  'px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-sm';
+  'px-3 py-2 rounded-lg border border-subtle bg-panel text-sm';
 
 function prefValue(item: Preference): string {
   const v = item.value_json;
@@ -159,10 +159,12 @@ export default function MemoryPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <header>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <Brain className="w-6 h-6" /> Memória
+        <h1 className="text-2xl font-semibold tracking-tight text-ink flex items-center gap-2">
+          <Brain className="w-6 h-6 text-accent" aria-hidden /> Memória
         </h1>
-        <p className="text-sm text-zinc-500 mt-1">Preferências, decisões arquiteturais e pitfalls.</p>
+        <p className="text-sm text-ink-muted mt-1">
+          Preferências, decisões arquiteturais e pitfalls.
+        </p>
       </header>
 
       <div className="flex flex-wrap gap-2">
@@ -172,8 +174,8 @@ export default function MemoryPage() {
             onClick={() => setTab(t.id)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               tab === t.id
-                ? 'bg-zinc-900 dark:bg-white text-white dark:text-black'
-                : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600'
+                ? 'bg-accent text-accent-fg'
+                : 'bg-elevated text-ink-muted'
             }`}
           >
             {t.label}
@@ -207,39 +209,39 @@ export default function MemoryPage() {
             <input placeholder="Projeto (opcional)" value={form.project ?? ''} onChange={(e) => setForm({ ...form, project: e.target.value })} className={inputClass} />
           </>
         )}
-        <button type="submit" className="px-3 py-2 rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-black text-xs font-medium">
+        <button type="submit" className="px-3 py-2 rounded-lg bg-accent text-accent-fg text-xs font-medium">
           {editingId ? 'Salvar' : 'Adicionar'}
         </button>
         {editingId && (
-          <button type="button" onClick={resetForm} className="px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 text-xs">
+          <button type="button" onClick={resetForm} className="px-3 py-2 rounded-lg border border-subtle text-xs">
             <X className="w-4 h-4" />
           </button>
         )}
       </form>
 
       {loading ? (
-        <p className="text-sm text-zinc-500">Carregando...</p>
+        <p className="text-sm text-ink-muted">Carregando...</p>
       ) : items.length === 0 ? (
-        <p className="text-sm text-zinc-500">Nenhum registro.</p>
+        <p className="text-sm text-ink-muted">Nenhum registro.</p>
       ) : (
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+        <div className="rounded-lg border border-subtle overflow-hidden">
           <table className="w-full text-sm">
             <tbody>
               {items.map((item) => (
-                <tr key={item.id} className="border-b border-zinc-100 dark:border-zinc-800 last:border-0">
-                  <td className="p-3 font-mono text-xs text-zinc-500">{item.id.slice(0, 8)}</td>
+                <tr key={item.id} className="border-b border-subtle last:border-0">
+                  <td className="p-3 font-mono text-xs text-ink-muted">{item.id.slice(0, 8)}</td>
                   <td className="p-3">
                     {tab === 'preferences' && (
                       <span>
                         {(item as Preference).key} = {prefValue(item as Preference)}
-                        <span className="text-zinc-400 ml-2">({(item as Preference).scope})</span>
+                        <span className="text-ink-muted ml-2">({(item as Preference).scope})</span>
                       </span>
                     )}
                     {tab === 'decisions' && (
                       <span>
                         {(item as Decision).topic}: {(item as Decision).chosen_option}
                         {(item as Decision).project && (
-                          <span className="text-zinc-400 ml-2">· {(item as Decision).project}</span>
+                          <span className="text-ink-muted ml-2">· {(item as Decision).project}</span>
                         )}
                       </span>
                     )}
@@ -247,14 +249,14 @@ export default function MemoryPage() {
                       <span>
                         {(item as Pitfall).symptom} → {(item as Pitfall).fix}
                         {(item as Pitfall).project && (
-                          <span className="text-zinc-400 ml-2">· {(item as Pitfall).project}</span>
+                          <span className="text-ink-muted ml-2">· {(item as Pitfall).project}</span>
                         )}
                       </span>
                     )}
                   </td>
                   <td className="p-3 text-right flex justify-end gap-2">
                     {(tab === 'preferences' || tab === 'decisions') && (
-                      <button onClick={() => startEdit(item)} className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white" title="Editar">
+                      <button onClick={() => startEdit(item)} className="text-ink-muted hover:text-ink" title="Editar">
                         <Pencil className="w-4 h-4" />
                       </button>
                     )}

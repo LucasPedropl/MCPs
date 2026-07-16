@@ -30,5 +30,11 @@ stdout.txt
 .DS_Store
 .cursor/mcp.json
 
+# Agent skills — materialização local (sync_skills to_host) e catálogo do monorepo.
+# Registry canônico fica no Supabase; arquivos já trackeados em skills/ continuam no git.
+.cursor/skills/
+.claude/skills/
+/skills/
+
 # Temporary
 trash/

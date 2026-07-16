@@ -141,13 +141,13 @@ export function AuthTab({
             <div className="p-6 rounded-2xl bg-zinc-50 dark:bg-[#0e1428]/20 border border-zinc-200 dark:border-indigo-900/40 space-y-6 animate-in fade-in duration-200">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800/80 pb-4">
                 <div className="flex items-center gap-3">
-                  <Key className="w-5 h-5 text-indigo-500" />
+                  <Key className="w-5 h-5 text-accent" />
                   <div>
                     <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
                       Configurações do Perfil: {currentProfile.name}
                     </h4>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                      Identificador único: <code className="font-mono text-indigo-600 dark:text-indigo-400">{currentProfile.id}</code>
+                      Identificador único: <code className="font-mono text-accent">{currentProfile.id}</code>
                     </p>
                   </div>
                 </div>
@@ -208,7 +208,7 @@ export function AuthTab({
 
               <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-4 border-t border-zinc-200 dark:border-zinc-800/60">
                 <Button variant="secondary" size="sm" onClick={() => onTestLogin(currentProfile)} isLoading={isTestingLogin} disabled={isSavingAuth} className="w-full sm:w-auto gap-1.5">
-                  <Send className="w-4 h-4 text-indigo-500" /> Testar Login
+                  <Send className="w-4 h-4 text-accent" /> Testar Login
                 </Button>
                 <Button variant="primary" size="sm" onClick={() => onSaveAuth({ authMode, profiles })} isLoading={isSavingAuth} disabled={isTestingLogin} className="w-full sm:w-auto gap-1.5">
                   <Save className="w-4 h-4" /> Salvar Configurações
@@ -229,7 +229,7 @@ export function AuthTab({
         {testLoginResult && (
           <div className="mt-8 pt-6 border-t border-zinc-200 dark:border-zinc-800/60 animate-in fade-in duration-300">
             <h4 className="text-sm font-semibold text-zinc-900 dark:text-white mb-3 flex items-center gap-2">
-              <Key className="w-4 h-4 text-indigo-500" /> Resultado do Teste
+              <Key className="w-4 h-4 text-accent" /> Resultado do Teste
             </h4>
             {testLoginResult.error ? (
               <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-xs text-red-900 dark:text-red-200 space-y-2 font-mono">

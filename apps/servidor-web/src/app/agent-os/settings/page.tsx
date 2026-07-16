@@ -67,13 +67,13 @@ export default function SettingsPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <header>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+        <h1 className="text-2xl font-semibold tracking-tight text-ink flex items-center gap-2">
           <Settings className="w-6 h-6" /> Configurações
         </h1>
-        <p className="text-sm text-zinc-500 mt-1">Status do Supabase, variáveis de ambiente e MCP.</p>
+        <p className="text-sm text-ink-muted mt-1">Status do Supabase, variáveis de ambiente e MCP.</p>
       </header>
 
-      <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 space-y-3">
+      <section className="rounded-lg border border-subtle p-6 space-y-3">
         <h2 className="text-sm font-medium flex items-center gap-2">
           <Database className="w-4 h-4" /> Supabase (Agent OS DB)
         </h2>
@@ -93,14 +93,14 @@ export default function SettingsPage() {
       <SettingsWorkerPanel />
 
       <SettingsPolicies />
-      <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 space-y-3">
+      <section className="rounded-lg border border-subtle p-6 space-y-3">
         <h2 className="text-sm font-medium">Variáveis de ambiente</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
           {data &&
             Object.entries(data.env).map(([key, ok]) => (
-              <div key={key} className="flex justify-between gap-2 border-b border-zinc-100 dark:border-zinc-800 pb-1">
-                <span className="font-mono text-zinc-500">{key}</span>
-                <span className={ok ? 'text-emerald-500' : 'text-zinc-400'}>{ok ? 'ok' : 'ausente'}</span>
+              <div key={key} className="flex justify-between gap-2 border-b border-subtle pb-1">
+                <span className="font-mono text-ink-muted">{key}</span>
+                <span className={ok ? 'text-emerald-500' : 'text-ink-muted'}>{ok ? 'ok' : 'ausente'}</span>
               </div>
             ))}
         </div>
@@ -108,11 +108,11 @@ export default function SettingsPage() {
 
       <SettingsPresetsEditor />
 
-      <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 space-y-3">
+      <section className="rounded-lg border border-subtle p-6 space-y-3">
         <h2 className="text-sm font-medium flex items-center gap-2">
           <RefreshCw className="w-4 h-4" /> Sync skills
         </h2>
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-ink-muted">
           Importa skills de <code className="font-mono">skills/</code> do monorepo para{' '}
           <code className="font-mono">agent_skills</code> no Supabase.
         </p>
@@ -122,27 +122,27 @@ export default function SettingsPage() {
       </section>
 
       {data?.configPaths && (
-        <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 space-y-2 text-xs font-mono">
+        <section className="rounded-lg border border-subtle p-6 space-y-2 text-xs font-mono">
           <h2 className="text-sm font-medium font-sans">Caminhos de config</h2>
           <p>Cursor: {data.configPaths.cursor}</p>
           <p>Antigravity: {data.configPaths.antigravity}</p>
         </section>
       )}
 
-      <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 space-y-3">
+      <section className="rounded-lg border border-subtle p-6 space-y-3">
         <h2 className="text-sm font-medium">Snippet MCP — Cursor</h2>
-        <pre className="text-xs overflow-x-auto rounded-lg bg-zinc-100 dark:bg-black p-4 border border-zinc-200 dark:border-zinc-800">
+        <pre className="text-xs overflow-x-auto rounded-lg bg-elevated p-4 border border-subtle">
           {cursorSnippet || 'Carregando...'}
         </pre>
       </section>
 
-      <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 space-y-3">
+      <section className="rounded-lg border border-subtle p-6 space-y-3">
         <h2 className="text-sm font-medium">Snippet MCP — Antigravity</h2>
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-ink-muted">
           Manage MCP Servers → View raw config → cole o JSON abaixo em{' '}
           <code className="font-mono">~/.gemini/config/mcp_config.json</code>
         </p>
-        <pre className="text-xs overflow-x-auto rounded-lg bg-zinc-100 dark:bg-black p-4 border border-zinc-200 dark:border-zinc-800">
+        <pre className="text-xs overflow-x-auto rounded-lg bg-elevated p-4 border border-subtle">
           {antigravitySnippet || 'Carregando...'}
         </pre>
       </section>

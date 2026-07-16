@@ -1,10 +1,8 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import Link from 'next/link';
 import {
   Activity,
-  ArrowLeft,
   RefreshCw,
   Search,
   AlertTriangle,
@@ -13,6 +11,9 @@ import { UsageHostChart } from './UsageHostChart';
 import { UsageTopToolsChart } from './UsageTopToolsChart';
 import { UsageCoverageRing } from './UsageCoverageRing';
 import { ToolDocModal } from './ToolDocModal';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { Skeleton } from '@/components/ui/Skeleton';
 import type {
   ToolUsageRow,
   UsageDays,
@@ -82,55 +83,53 @@ export function UsageDashboard({
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
-      <header className="space-y-3">
-        <Link
-          href="/agent-os"
-          className="inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
-        >
-          <ArrowLeft className="w-3 h-3" /> Overview
-        </Link>
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <Activity className="w-6 h-6 text-cyan-500" /> Tool usage
-            </h1>
-            <p className="text-sm text-zinc-500 mt-1 max-w-xl">
-              Quem chama o quê no agent-os. Clique numa tool para abrir a
-              legenda. Hosts dependem de{' '}
-              <code className="font-mono text-[11px]">AGENT_OS_HOST</code> no
-              mcp.json.
-            </p>
-            {windowLabel && (
-              <p className="text-[11px] text-zinc-400 mt-2 tabular-nums">
+      <PageHeader
+        title="Uso de tools"
+        description={
+          <>
+            Quem chama o quê no agent-os. Clique numa tool para abrir a legenda.
+            Hosts dependem de{' '}
+            <code className="font-mono text-[11px] text-ink">AGENT_OS_HOST</code>{' '}
+            no mcp.json.
+            {windowLabel ? (
+              <span className="block text-[11px] text-ink-muted mt-2 tabular-nums">
                 Janela: {windowLabel}
-              </p>
-            )}
-          </div>
-          <button
+              </span>
+            ) : null}
+          </>
+        }
+        actions={
+          <Button
             type="button"
+            variant="secondary"
+            size="sm"
             onClick={onReload}
             disabled={isLoading}
-            className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 disabled:opacity-50"
           >
             <RefreshCw
               className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`}
+              aria-hidden
             />
             Atualizar
-          </button>
-        </div>
-      </header>
+          </Button>
+        }
+      />
 
       <div className="flex flex-wrap gap-3 items-center">
-        <div className="flex gap-1 rounded-lg border border-zinc-200 dark:border-zinc-800 p-1 bg-white dark:bg-zinc-950">
+        <div
+          className="flex gap-1 rounded-md border border-subtle p-1 bg-panel"
+          role="group"
+          aria-label="Período"
+        >
           {DAY_OPTIONS.map((option) => (
             <button
               key={option}
               type="button"
               onClick={() => onDaysChange(option)}
-              className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+              className={`px-3 py-1.5 text-xs rounded-md min-h-9 transition-colors ${
                 days === option
-                  ? 'bg-cyan-600 text-white'
-                  : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900'
+                  ? 'bg-accent text-accent-fg'
+                  : 'text-ink-muted hover:bg-elevated'
               }`}
             >
               {option}d
@@ -142,7 +141,8 @@ export function UsageDashboard({
           onChange={(event) =>
             onHostChange(event.target.value as UsageHostFilter)
           }
-          className="text-xs rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2"
+          aria-label="Filtrar por host"
+          className="text-xs rounded-md border border-subtle bg-panel text-ink px-3 py-2 min-h-11"
         >
           {HOST_OPTIONS.map((option) => (
             <option key={option.value || 'all'} value={option.value}>
@@ -153,18 +153,25 @@ export function UsageDashboard({
       </div>
 
       {isLoading && !data && (
-        <p className="text-sm text-zinc-500">Carregando telemetria…</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-20" />
+          ))}
+        </div>
       )}
 
       {error && (
-        <div className="rounded-xl border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 p-4 text-sm text-red-800 dark:text-red-200 flex items-start gap-2">
-          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+        <div
+          className="rounded-lg border border-danger/30 bg-danger/10 p-4 text-sm text-danger flex items-start gap-2"
+          role="alert"
+        >
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" aria-hidden />
           {error}
         </div>
       )}
 
       {data && !data.configured && (
-        <div className="rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 p-4 text-sm text-amber-800 dark:text-amber-200">
+        <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning">
           Supabase não configurado no servidor-web.
         </div>
       )}
@@ -172,7 +179,7 @@ export function UsageDashboard({
       {data?.configured && data.summary && (
         <>
           <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5 grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="lg:col-span-2 rounded-lg border border-subtle bg-panel p-5 grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
                 {
                   label: 'Calls',
@@ -196,19 +203,19 @@ export function UsageDashboard({
                 },
               ].map((card) => (
                 <div key={card.label}>
-                  <div className="text-[11px] uppercase tracking-wide text-zinc-500">
+                  <div className="text-[11px] uppercase tracking-wide text-ink-muted">
                     {card.label}
                   </div>
-                  <div className="text-2xl font-semibold tabular-nums mt-1 tracking-tight">
+                  <div className="text-2xl font-semibold tabular-nums mt-1 tracking-tight font-mono text-ink">
                     {card.value}
                   </div>
-                  <div className="text-[11px] text-zinc-400 mt-0.5">
+                  <div className="text-[11px] text-ink-muted mt-0.5">
                     {card.hint}
                   </div>
                 </div>
               ))}
             </div>
-            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5 flex items-center">
+            <div className="rounded-lg border border-subtle bg-panel p-5 flex items-center">
               <UsageCoverageRing
                 coverage={data.summary.coverage}
                 touched={data.summary.touched_tools}
@@ -218,12 +225,15 @@ export function UsageDashboard({
           </section>
 
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5">
-              <h2 className="text-sm font-medium mb-4">Por host</h2>
+            <div className="rounded-lg border border-subtle bg-panel p-5">
+              <h2 className="text-sm font-medium mb-4 text-ink">Por host</h2>
               <UsageHostChart rows={data.summary.by_host} />
             </div>
-            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5">
-              <h2 className="text-sm font-medium mb-1">Top tools</h2>
+            <div className="rounded-lg border border-subtle bg-panel p-5">
+              <h2 className="text-sm font-medium mb-1 text-ink flex items-center gap-2">
+                <Activity className="w-4 h-4 text-accent" aria-hidden />
+                Top tools
+              </h2>
               <UsageTopToolsChart
                 rows={data.top_tools ?? []}
                 onSelectTool={setSelectedTool}
@@ -231,31 +241,35 @@ export function UsageDashboard({
             </div>
           </section>
 
-          <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5 space-y-4">
+          <section className="rounded-lg border border-subtle bg-panel p-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-sm font-medium">
+              <h2 className="text-sm font-medium text-ink">
                 Never used{' '}
-                <span className="text-zinc-400 font-normal">
+                <span className="text-ink-muted font-normal">
                   ({data.never_used?.length ?? 0})
                 </span>
               </h2>
               <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+                <Search
+                  className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted"
+                  aria-hidden
+                />
                 <input
                   type="search"
                   value={neverUsedQuery}
                   onChange={(event) => setNeverUsedQuery(event.target.value)}
                   placeholder="Filtrar tools…"
-                  className="text-xs pl-8 pr-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-transparent w-52"
+                  aria-label="Filtrar tools nunca usadas"
+                  className="text-xs pl-8 pr-3 py-2 rounded-md border border-subtle bg-transparent w-52 text-ink min-h-11"
                 />
               </div>
             </div>
             {(data.never_used?.length ?? 0) === 0 ? (
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-ink-muted">
                 Todas as tools documentadas foram tocadas na janela.
               </p>
             ) : filteredNeverUsed.length === 0 ? (
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-ink-muted">
                 Nenhuma tool bate com “{neverUsedQuery}”.
               </p>
             ) : (
@@ -265,7 +279,7 @@ export function UsageDashboard({
                     key={name}
                     type="button"
                     onClick={() => setSelectedTool(name)}
-                    className="font-mono text-[11px] px-2.5 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:bg-cyan-500/10 hover:text-cyan-700 dark:hover:text-cyan-300 hover:ring-1 hover:ring-cyan-500/30 transition-colors"
+                    className="font-mono text-[11px] px-2.5 py-1.5 rounded-md bg-elevated text-ink-muted hover:bg-accent-muted hover:text-accent hover:ring-1 hover:ring-accent/30 transition-colors min-h-9"
                     title="Ver o que esta tool faz"
                   >
                     {name}
@@ -276,12 +290,14 @@ export function UsageDashboard({
           </section>
 
           {(data.proxies?.length ?? 0) > 0 && (
-            <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5 space-y-3">
-              <h2 className="text-sm font-medium">Proxies (alias / child tool)</h2>
+            <section className="rounded-lg border border-subtle bg-panel p-5 space-y-3">
+              <h2 className="text-sm font-medium text-ink">
+                Proxies (alias / child tool)
+              </h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="text-left text-zinc-500 border-b border-zinc-100 dark:border-zinc-800">
+                    <tr className="text-left text-ink-muted border-b border-subtle">
                       <th className="py-2 pr-4 font-medium">Proxy</th>
                       <th className="py-2 pr-4 font-medium">Alias</th>
                       <th className="py-2 pr-4 font-medium">Child</th>
@@ -293,13 +309,13 @@ export function UsageDashboard({
                     {data.proxies?.map((row) => (
                       <tr
                         key={`${row.tool_name}-${row.alias}-${row.child_tool}`}
-                        className="border-b border-zinc-50 dark:border-zinc-900"
+                        className="border-b border-subtle/60"
                       >
                         <td className="py-2 pr-4">
                           <button
                             type="button"
                             onClick={() => setSelectedTool(row.tool_name)}
-                            className="font-mono hover:text-cyan-600 dark:hover:text-cyan-400"
+                            className="font-mono text-ink hover:text-accent"
                           >
                             {row.tool_name}
                           </button>

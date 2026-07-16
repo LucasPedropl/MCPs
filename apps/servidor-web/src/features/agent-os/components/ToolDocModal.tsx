@@ -114,7 +114,7 @@ export function ToolDocModal({
       >
         <div className="flex items-start justify-between gap-4 p-5 border-b border-zinc-200 dark:border-zinc-800">
           <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-[0.16em] text-cyan-600 dark:text-cyan-400 mb-1">
+            <p className="text-[10px] uppercase tracking-[0.16em] text-accent mb-1">
               Tool
             </p>
             <h3

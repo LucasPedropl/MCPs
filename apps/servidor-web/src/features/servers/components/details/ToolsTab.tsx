@@ -288,7 +288,7 @@ export function ToolsTab({
       <div className="space-y-3">
         <div className="flex items-center justify-between px-2 py-1 bg-zinc-100 dark:bg-zinc-900/60 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs">
           <button onClick={handleSelectAll} className="flex items-center gap-2 font-medium">
-            {selectedToolIds.length === filteredTools.length ? <CheckSquare className="w-4 h-4 text-indigo-600" /> : <Square className="w-4 h-4" />}
+            {selectedToolIds.length === filteredTools.length ? <CheckSquare className="w-4 h-4 text-accent" /> : <Square className="w-4 h-4" />}
             Selecionar Todos ({filteredTools.length})
           </button>
         </div>
@@ -316,11 +316,11 @@ export function ToolsTab({
                   handleSelectOne(tool.id);
                 }
               }}
-              className={`flex flex-col gap-3 p-4 rounded-xl bg-white dark:bg-[#0a0a0a] border transition-all ${selectedToolIds.length > 0 ? 'cursor-pointer select-none' : ''} ${isSelected ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-zinc-200 dark:border-zinc-800'}`}
+              className={`flex flex-col gap-3 p-4 rounded-xl bg-white dark:bg-[#0a0a0a] border transition-all ${selectedToolIds.length > 0 ? 'cursor-pointer select-none' : ''} ${isSelected ? 'border-accent ring-1 ring-indigo-500' : 'border-zinc-200 dark:border-zinc-800'}`}
             >
               <div className="flex items-center justify-between gap-2 border-b border-zinc-200 dark:border-zinc-800/60 pb-3">
                 <div className="flex items-center gap-3 truncate">
-                  <button onClick={() => handleSelectOne(tool.id)}>{isSelected ? <CheckSquare className="w-4 h-4 text-indigo-600" /> : <Square className="w-4 h-4" />}</button>
+                  <button onClick={() => handleSelectOne(tool.id)}>{isSelected ? <CheckSquare className="w-4 h-4 text-accent" /> : <Square className="w-4 h-4" />}</button>
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getMethodBadgeClass(tool.http_method)}`}>{tool.http_method.toUpperCase()}</span>
                   <span className="text-xs font-mono truncate">{tool.endpoint_path}</span>
                 </div>
@@ -343,11 +343,11 @@ export function ToolsTab({
 
                     return (
                       <span className="px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-[11px] flex items-center gap-1 flex-wrap">
-                        <Key className="w-3 h-3 text-indigo-500 mr-0.5" />
+                        <Key className="w-3 h-3 text-accent mr-0.5" />
                         {authReqList.map((reqId, idx) => {
                           const prof = profiles.find(p => p.id === reqId);
                           return (
-                            <span key={reqId} className="font-semibold text-indigo-600 dark:text-indigo-400">
+                            <span key={reqId} className="font-semibold text-accent">
                               {prof ? prof.name : reqId}
                               {idx < authReqList.length - 1 && <span className="text-zinc-400 dark:text-zinc-600 mx-1">/</span>}
                             </span>

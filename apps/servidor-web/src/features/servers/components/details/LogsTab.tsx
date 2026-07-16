@@ -94,7 +94,7 @@ export function LogsTab({ serverId }: LogsTabProps) {
               className="w-full p-4 flex items-center justify-between gap-3 text-left hover:bg-zinc-50 dark:hover:bg-zinc-900/30 transition-colors"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <Layers className="w-4 h-4 text-indigo-500 shrink-0" />
+                <Layers className="w-4 h-4 text-accent shrink-0" />
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-zinc-900 dark:text-white truncate">
                     Sincronização — {new Date(report.created_at).toLocaleString('pt-BR')}

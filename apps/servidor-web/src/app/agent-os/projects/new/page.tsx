@@ -12,7 +12,7 @@ export default function NewProjectPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <header className="space-y-2">
-        <Link href="/agent-os/projects" className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-white flex items-center gap-1">
+        <Link href="/agent-os/projects" className="text-xs text-ink-muted hover:text-ink flex items-center gap-1">
           <ArrowLeft className="w-3 h-3" /> Voltar aos projetos
         </Link>
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">

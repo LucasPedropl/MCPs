@@ -82,13 +82,13 @@ export default function PlaybooksPage() {
     <div className="max-w-5xl mx-auto space-y-6">
       <header className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight text-ink flex items-center gap-2">
             <BookOpen className="w-6 h-6" /> Playbooks
           </h1>
-          <p className="text-sm text-zinc-500 mt-1">Playbooks de APIs e fluxos reutilizáveis.</p>
+          <p className="text-sm text-ink-muted mt-1">Playbooks de APIs e fluxos reutilizáveis.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/agent-os/knowledge/skills" className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-white">
+          <Link href="/agent-os/knowledge/skills" className="text-xs text-ink-muted hover:text-ink">
             ← Skills
           </Link>
           <Button size="sm" onClick={() => setModalOpen(true)}>
@@ -100,20 +100,20 @@ export default function PlaybooksPage() {
       {error && <p className="text-sm text-red-500">{error}</p>}
 
       {loading ? (
-        <p className="text-sm text-zinc-500">Carregando...</p>
+        <p className="text-sm text-ink-muted">Carregando...</p>
       ) : items.length === 0 ? (
-        <p className="text-sm text-zinc-500">Nenhum playbook cadastrado.</p>
+        <p className="text-sm text-ink-muted">Nenhum playbook cadastrado.</p>
       ) : (
         <div className="space-y-2">
           {items.map((pb) => (
-            <div key={pb.id} className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 flex items-center justify-between gap-4">
+            <div key={pb.id} className="rounded-lg border border-subtle p-4 flex items-center justify-between gap-4">
               <div>
                 <div className="font-medium text-sm">{pb.alias ?? `Playbook ${pb.id.slice(0, 8)}`}</div>
-                <p className="text-xs text-zinc-500 mt-1">
+                <p className="text-xs text-ink-muted mt-1">
                   {pb.author} · v{pb.version_tag}
                   {pb.server_id && ` · server ${pb.server_id.slice(0, 8)}`}
                 </p>
-                <p className="text-xs text-zinc-400">{new Date(pb.created_at).toLocaleString('pt-BR')}</p>
+                <p className="text-xs text-ink-muted">{new Date(pb.created_at).toLocaleString('pt-BR')}</p>
               </div>
               <button onClick={() => handleDelete(pb.id)} className="text-red-500 shrink-0" title="Excluir">
                 <Trash2 className="w-4 h-4" />
@@ -126,25 +126,25 @@ export default function PlaybooksPage() {
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
-          <div className="relative w-full max-w-lg rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl p-6 space-y-4">
+          <div className="relative w-full max-w-lg rounded-lg border border-subtle bg-panel shadow-2xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold">Novo playbook</h2>
-              <button onClick={() => setModalOpen(false)} className="text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
+              <button onClick={() => setModalOpen(false)} className="text-ink-muted hover:text-ink">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
-                <label className="text-xs text-zinc-500 mb-1 block">Alias</label>
+                <label className="text-xs text-ink-muted mb-1 block">Alias</label>
                 <input
                   value={form.alias}
                   onChange={(e) => setForm({ ...form, alias: e.target.value })}
                   placeholder="ex: criar-usuario"
-                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-sm"
+                  className="w-full px-3 py-2 rounded-lg border border-subtle bg-panel text-sm"
                 />
               </div>
               <div>
-                <label className="text-xs text-zinc-500 mb-1 block">Servidor MCP (opcional)</label>
+                <label className="text-xs text-ink-muted mb-1 block">Servidor MCP (opcional)</label>
                 <SearchableSelect
                   options={serverOptions}
                   value={form.server_id}
@@ -153,12 +153,12 @@ export default function PlaybooksPage() {
                 />
               </div>
               <div>
-                <label className="text-xs text-zinc-500 mb-1 block">Conteúdo (Markdown)</label>
+                <label className="text-xs text-ink-muted mb-1 block">Conteúdo (Markdown)</label>
                 <textarea
                   value={form.content_md}
                   onChange={(e) => setForm({ ...form, content_md: e.target.value })}
                   rows={10}
-                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-sm font-mono"
+                  className="w-full px-3 py-2 rounded-lg border border-subtle bg-panel text-sm font-mono"
                   required
                 />
               </div>

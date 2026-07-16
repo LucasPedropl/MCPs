@@ -4,30 +4,42 @@ import { LoginForm } from '@/features/auth/components/LoginForm';
 
 export default function LoginPage() {
   return (
-    <div className="min-h-full flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-sm space-y-6">
+    <div className="relative min-h-full flex items-center justify-center px-4 py-12 overflow-hidden">
+      <div
+        className="pointer-events-none absolute inset-0"
+        aria-hidden
+        style={{
+          background:
+            'radial-gradient(ellipse 80% 50% at 50% -20%, var(--accent-muted), transparent), radial-gradient(ellipse 60% 40% at 100% 100%, var(--accent-muted), transparent)',
+        }}
+      />
+
+      <div className="relative w-full max-w-sm space-y-6">
         <div className="text-center space-y-3">
-          <div className="mx-auto w-11 h-11 rounded-xl bg-zinc-900 dark:bg-white flex items-center justify-center">
-            <Brain className="w-5 h-5 text-white dark:text-black" />
+          <div className="mx-auto w-11 h-11 rounded-md bg-accent-muted ring-1 ring-accent/30 flex items-center justify-center">
+            <Brain className="w-5 h-5 text-accent" aria-hidden />
           </div>
           <div>
-            <h1 className="text-xl font-semibold tracking-tight">Agent OS</h1>
-            <p className="text-xs text-zinc-500 mt-1">
-              Login do dashboard — sessão via cookie httpOnly.
+            <h1 className="text-xl font-semibold tracking-tight text-ink">
+              Agent OS
+            </h1>
+            <p className="text-xs text-ink-muted mt-1">
+              Acesse o painel — sessão via cookie httpOnly.
             </p>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6 shadow-sm">
-          <Suspense fallback={<p className="text-xs text-zinc-500">Carregando…</p>}>
+        <div className="rounded-lg border border-subtle bg-panel p-6 shadow-[var(--shadow-panel)]">
+          <Suspense
+            fallback={<p className="text-xs text-ink-muted">Carregando…</p>}
+          >
             <LoginForm />
           </Suspense>
         </div>
 
-        <p className="text-[11px] text-center text-zinc-500 leading-relaxed">
-          Credenciais no <strong>Supabase Auth</strong>. Marque Lembrar-me para
-          ficar logado até clicar em Sair (cookie httpOnly — senha não vai para
-          localStorage).
+        <p className="text-[11px] text-center text-ink-muted leading-relaxed">
+          Credenciais no Supabase Auth. Marque Lembrar-me para ficar logado até
+          clicar em Sair.
         </p>
       </div>
     </div>

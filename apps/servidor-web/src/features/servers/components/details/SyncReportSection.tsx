@@ -18,7 +18,7 @@ export function SyncReportSection({ report, onClose }: SyncReportSectionProps) {
     <Card className="p-6 border-indigo-200 dark:border-indigo-900/60 bg-white dark:bg-[#0a0a0a] animate-in fade-in duration-300 shadow-md">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-4 mb-4">
         <div className="flex items-center gap-2">
-          <Layers className="w-5 h-5 text-indigo-500" />
+          <Layers className="w-5 h-5 text-accent" />
           <div>
             <h3 className="text-base font-bold text-zinc-900 dark:text-white">Relatório de Sincronização (Changelog)</h3>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">Gerado em {new Date(report.created_at || Date.now()).toLocaleString()}</p>
@@ -30,7 +30,7 @@ export function SyncReportSection({ report, onClose }: SyncReportSectionProps) {
       </div>
 
       <div className="flex items-center gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-2 mb-4 text-xs font-medium overflow-x-auto custom-scrollbar">
-        <button onClick={() => setActiveTab('summary')} className={`pb-2 border-b-2 whitespace-nowrap ${activeTab === 'summary' ? 'border-indigo-500 text-indigo-600 font-bold' : 'border-transparent text-zinc-500'}`}>Sumário</button>
+        <button onClick={() => setActiveTab('summary')} className={`pb-2 border-b-2 whitespace-nowrap ${activeTab === 'summary' ? 'border-accent text-accent font-bold' : 'border-transparent text-zinc-500'}`}>Sumário</button>
         <button onClick={() => setActiveTab('added')} className={`pb-2 border-b-2 whitespace-nowrap flex items-center gap-1 ${activeTab === 'added' ? 'border-emerald-500 text-emerald-600 font-bold' : 'border-transparent text-zinc-500'}`}>
           <span className="w-2 h-2 rounded-full bg-emerald-500" /> Adicionados ({report.added_endpoints?.length || 0})
         </button>

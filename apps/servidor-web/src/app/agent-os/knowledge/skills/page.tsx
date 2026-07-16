@@ -74,13 +74,13 @@ export default function SkillsPage() {
     <div className="max-w-5xl mx-auto space-y-6">
       <header className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight text-ink flex items-center gap-2">
             <Sparkles className="w-6 h-6" /> Skills
           </h1>
-          <p className="text-sm text-zinc-500 mt-1">Skills persistidas no banco Agent OS.</p>
+          <p className="text-sm text-ink-muted mt-1">Skills persistidas no banco Agent OS.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/agent-os/knowledge/playbooks" className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-white">
+          <Link href="/agent-os/knowledge/playbooks" className="text-xs text-ink-muted hover:text-ink">
             Ver playbooks →
           </Link>
           <Button size="sm" onClick={() => setModalOpen(true)}>
@@ -92,24 +92,24 @@ export default function SkillsPage() {
       {error && <p className="text-sm text-red-500">{error}</p>}
 
       {loading ? (
-        <p className="text-sm text-zinc-500">Carregando...</p>
+        <p className="text-sm text-ink-muted">Carregando...</p>
       ) : skills.length === 0 ? (
-        <p className="text-sm text-zinc-500">Nenhuma skill cadastrada.</p>
+        <p className="text-sm text-ink-muted">Nenhuma skill cadastrada.</p>
       ) : (
         <div className="space-y-2">
           {skills.map((skill) => (
-            <div key={skill.id} className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
+            <div key={skill.id} className="rounded-lg border border-subtle p-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="font-mono font-medium">{skill.name}</div>
-                  <p className="text-xs text-zinc-500 mt-1">{skill.description || '—'}</p>
-                  <p className="text-xs text-zinc-400 mt-1">v{skill.version} · {skill.scope}</p>
+                  <p className="text-xs text-ink-muted mt-1">{skill.description || '—'}</p>
+                  <p className="text-xs text-ink-muted mt-1">v{skill.version} · {skill.scope}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {skill.content_md && (
                     <button
                       onClick={() => setExpandedId(expandedId === skill.id ? null : skill.id)}
-                      className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white text-xs flex items-center gap-1"
+                      className="text-ink-muted hover:text-ink text-xs flex items-center gap-1"
                     >
                       {expandedId === skill.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                       Preview
@@ -121,7 +121,7 @@ export default function SkillsPage() {
                 </div>
               </div>
               {expandedId === skill.id && skill.content_md && (
-                <pre className="mt-3 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900 text-xs whitespace-pre-wrap text-zinc-700 dark:text-zinc-300 border border-zinc-100 dark:border-zinc-800">
+                <pre className="mt-3 p-3 rounded-lg bg-elevated text-xs whitespace-pre-wrap text-ink border border-subtle">
                   {skill.content_md}
                 </pre>
               )}
@@ -133,37 +133,37 @@ export default function SkillsPage() {
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
-          <div className="relative w-full max-w-lg rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl p-6 space-y-4">
+          <div className="relative w-full max-w-lg rounded-lg border border-subtle bg-panel shadow-2xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold">Nova skill</h2>
-              <button onClick={() => setModalOpen(false)} className="text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
+              <button onClick={() => setModalOpen(false)} className="text-ink-muted hover:text-ink">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
-                <label className="text-xs text-zinc-500 mb-1 block">Nome</label>
+                <label className="text-xs text-ink-muted mb-1 block">Nome</label>
                 <input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-sm"
+                  className="w-full px-3 py-2 rounded-lg border border-subtle bg-panel text-sm"
                   required
                 />
               </div>
               <div>
-                <label className="text-xs text-zinc-500 mb-1 block">Conteúdo (Markdown)</label>
+                <label className="text-xs text-ink-muted mb-1 block">Conteúdo (Markdown)</label>
                 <textarea
                   value={form.content_md}
                   onChange={(e) => setForm({ ...form, content_md: e.target.value })}
                   rows={10}
-                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-sm font-mono"
+                  className="w-full px-3 py-2 rounded-lg border border-subtle bg-panel text-sm font-mono"
                   required
                 />
               </div>
               {form.content_md && (
                 <div>
-                  <p className="text-xs text-zinc-500 mb-1">Pré-visualização</p>
-                  <pre className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900 text-xs whitespace-pre-wrap text-zinc-700 dark:text-zinc-300 border border-zinc-100 dark:border-zinc-800 max-h-40 overflow-y-auto">
+                  <p className="text-xs text-ink-muted mb-1">Pré-visualização</p>
+                  <pre className="p-3 rounded-lg bg-elevated text-xs whitespace-pre-wrap text-ink border border-subtle max-h-40 overflow-y-auto">
                     {form.content_md}
                   </pre>
                 </div>

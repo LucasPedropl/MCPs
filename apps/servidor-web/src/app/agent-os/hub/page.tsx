@@ -60,10 +60,10 @@ export default function HubPage() {
     <div className="max-w-5xl mx-auto space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <GitBranch className="w-6 h-6" /> MCP Hub
+          <h1 className="text-2xl font-semibold tracking-tight text-ink flex items-center gap-2">
+            <GitBranch className="w-6 h-6 text-accent" aria-hidden /> Hub MCP
           </h1>
-          <p className="text-sm text-zinc-500 mt-1">
+          <p className="text-sm text-ink-muted mt-1">
             Conexões lazy — GitHub, Vercel, APIs OpenAPI e outros MCPs filhos.
           </p>
         </div>
@@ -71,28 +71,28 @@ export default function HubPage() {
           <button
             type="button"
             onClick={() => setStdioOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 text-xs font-medium hover:bg-zinc-100 dark:hover:bg-zinc-900"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-subtle text-xs font-medium hover:bg-elevated"
           >
             <Plus className="w-3.5 h-3.5" /> MCP stdio
           </button>
           <button
             type="button"
             onClick={() => setOpenapiOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 text-xs font-medium hover:bg-zinc-100 dark:hover:bg-zinc-900"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-subtle text-xs font-medium hover:bg-elevated"
           >
             <Server className="w-3.5 h-3.5" /> OpenAPI
           </button>
           <button
             type="button"
             onClick={handleRegisterPresets}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 text-xs font-medium hover:bg-zinc-100 dark:hover:bg-zinc-900"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-subtle text-xs font-medium hover:bg-elevated"
           >
             <Plug className="w-3.5 h-3.5" /> Conectar presets
           </button>
           <button
             type="button"
             onClick={load}
-            className="p-2 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900"
+            className="p-2 rounded-lg border border-subtle hover:bg-elevated"
             title="Atualizar"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -103,9 +103,9 @@ export default function HubPage() {
       {error && <p className="text-sm text-red-500">{error}</p>}
 
       {loading && connections.length === 0 ? (
-        <p className="text-sm text-zinc-500">Carregando...</p>
+        <p className="text-sm text-ink-muted">Carregando...</p>
       ) : connections.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 p-8 text-center text-sm text-zinc-500">
+        <div className="rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 p-8 text-center text-sm text-ink-muted">
           Nenhuma conexão. Adicione um MCP stdio, conecte OpenAPI ou use{' '}
           <strong>Conectar presets</strong>.
         </div>

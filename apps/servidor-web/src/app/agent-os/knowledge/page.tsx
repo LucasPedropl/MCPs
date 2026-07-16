@@ -2,11 +2,13 @@
 
 import Link from 'next/link';
 import { BookOpen, Sparkles, ArrowRight } from 'lucide-react';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 const CARDS = [
   {
     title: 'Skills',
-    description: 'Skills versionadas no banco e sincronizáveis para o host (Cursor/Antigravity).',
+    description:
+      'Skills versionadas no banco e sincronizáveis para o host (Cursor/Antigravity).',
     href: '/agent-os/knowledge/skills',
     icon: Sparkles,
   },
@@ -21,29 +23,37 @@ const CARDS = [
 export default function KnowledgeHubPage() {
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight">Knowledge</h1>
-        <p className="text-sm text-zinc-500 mt-1">Skills e playbooks do Agent OS.</p>
-      </header>
+      <PageHeader
+        title="Conhecimento"
+        description="Skills e playbooks do Agent OS."
+      />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <ul className="rounded-lg border border-subtle bg-panel divide-y divide-[var(--border-subtle)] overflow-hidden">
         {CARDS.map((card) => (
-          <Link
-            key={card.href}
-            href={card.href}
-            className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 hover:border-zinc-400 dark:hover:border-zinc-600 transition-colors flex flex-col gap-3"
-          >
-            <card.icon className="w-6 h-6 text-zinc-500" />
-            <div>
-              <h2 className="font-semibold">{card.title}</h2>
-              <p className="text-sm text-zinc-500 mt-1">{card.description}</p>
-            </div>
-            <span className="text-xs text-zinc-400 flex items-center gap-1 mt-auto">
-              Abrir <ArrowRight className="w-3 h-3" />
-            </span>
-          </Link>
+          <li key={card.href}>
+            <Link
+              href={card.href}
+              className="flex items-center gap-3 px-4 py-4 hover:bg-elevated/60 transition-colors group"
+            >
+              <span className="flex h-9 w-9 items-center justify-center rounded-md bg-elevated text-ink-muted group-hover:text-accent">
+                <card.icon className="w-4 h-4" aria-hidden />
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-sm font-medium text-ink">
+                  {card.title}
+                </span>
+                <span className="block text-xs text-ink-muted mt-0.5">
+                  {card.description}
+                </span>
+              </span>
+              <ArrowRight
+                className="w-4 h-4 text-ink-muted opacity-0 group-hover:opacity-100"
+                aria-hidden
+              />
+            </Link>
+          </li>
         ))}
-      </div>
+      </ul>
     </div>
   );
 }
