@@ -8,6 +8,7 @@
     "apps/*"
   ],
   "scripts": {
+    "dev": "npm run dev -w @mcps/servidor-web",
     "build": "npm run build:packages && npm run build:apps",
     "build:packages": "npm run build -w @mcps/shared && npm run build -w @mcps/openapi-engine && npm run build -w @mcps/agent-os",
     "build:apps": "npm run build -w @mcps/servidor-web",

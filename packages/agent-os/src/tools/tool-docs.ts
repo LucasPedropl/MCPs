@@ -26,6 +26,33 @@ export function getFullToolDoc(name: string): string | null {
 	return AGENT_TOOL_DOCS[name] ?? ORCHESTRATION_TOOL_DOCS[name] ?? null;
 }
 
+/** Catálogo estático de tools documentadas (fallback never-used no frontend). */
+export function listDocumentedToolNames(): string[] {
+	return [
+		...new Set([
+			...Object.keys(AGENT_TOOL_DOCS),
+			...Object.keys(ORCHESTRATION_TOOL_DOCS),
+		]),
+	].sort((a, b) => a.localeCompare(b));
+}
+
+export interface ToolDocEntry {
+	summary: string;
+	full: string;
+}
+
+/** Mapa name → docs para UI (painel usage / modal). Independente de AGENT_OS_TOOL_DOCS. */
+export function getToolDocsMap(): Record<string, ToolDocEntry> {
+	const out: Record<string, ToolDocEntry> = {};
+	for (const name of listDocumentedToolNames()) {
+		const full = getFullToolDoc(name) ?? name;
+		const summary =
+			COMPACT_TOOL_DOC_OVERRIDES[name] ?? compactToolDoc(full);
+		out[name] = { summary, full };
+	}
+	return out;
+}
+
 /**
  * Overrides compactos escritos à mão para pares confundíveis: o contraste do
  * WHEN NOT migra para a linha-resumo para não perder precisão de ativação.
@@ -36,6 +63,9 @@ RETURNS: Resultado do MCP oficial Supabase (cap de chars com marcador TRUNCATED;
 
 	call_mcp_tool: `Executa tool de MCP externo registrado no hub lazy (GitHub, Vercel, OpenAPI custom) por alias. Para o banco Supabase do projeto ativo use call_supabase_tool.
 RETURNS: Resultado da tool filha (cap de chars com marcador TRUNCATED; max_chars ajusta).`,
+
+	mcp_usage_stats: `Relatório de uso das tools do agent-os (top, never-used, por host, error rate, proxies). Para painel visual use /agent-os/usage no servidor-web.
+RETURNS: { success, summary, top_tools, never_used, proxies, window }`,
 
 	remember: `Salva memória persistente: kind=preference|decision|pitfall|task_log. Para regra de projeto com enforcement use set_project_rule.
 RETURNS: Registro salvo com id.`,
@@ -79,6 +109,15 @@ RETURNS: { success, activeContext }`,
 
 export const AGENT_TOOL_DOCS: Record<string, string> = {
 	// ── core ────────────────────────────────────────────────────────────────
+	mcp_usage_stats: `
+Relatório agregado de telemetria das tools do agent-os (calls, erros, never-used, por host).
+WHEN TO USE: Descobrir tools mortas, top usage, error rate ou breakdown cursor/antigravity/claude_code no chat.
+WHEN NOT: Exploração visual longa — use o painel /agent-os/usage no servidor-web.
+RETURNS: { success, summary{total_calls,error_rate,coverage,by_host}, top_tools[], never_used[], proxies[], window }
+PARAMS: days? (default 30), host? (cursor|antigravity|claude_code|unknown), limit? (default 20)
+NOTES: Exige Supabase. Host só é confiável se AGENT_OS_HOST estiver setado em cada mcp.json. Esta tool não se auto-grava (anti feedback loop). Sem args/results nos eventos.
+`.trim(),
+
 	agent_os_status: `
 Status geral do Agent OS: versão, workspace, Supabase, módulos habilitados.
 WHEN TO USE: Health check rápido ou debug de configuração (key, config dir, workspace resolution).

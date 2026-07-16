@@ -48,7 +48,8 @@ const MCP_SNIPPET = `{
       "env": {
         "AGENT_OS_SUPABASE_URL": "https://xrjjzyfevbuuxeundgds.supabase.co",
         "AGENT_OS_SUPABASE_KEY": "<sua_key>",
-        "AGENT_OS_DEFAULT_CWD": "\${workspaceFolder}"
+        "AGENT_OS_DEFAULT_CWD": "\${workspaceFolder}",
+        "AGENT_OS_HOST": "cursor"
       }
     }
   }
@@ -76,6 +77,7 @@ export default function AgentOsDashboardPage() {
   ];
 
   const quickLinks = [
+    { title: 'Tool usage', desc: 'Top tools, never-used, hosts e proxies', href: '/agent-os/usage' },
     { title: 'Gerar MCP via Swagger', desc: 'Cadastre APIs OpenAPI e exponha via hub', href: '/agent-os/mcp-servers' },
     { title: 'Hub de MCPs', desc: 'GitHub, Vercel, OpenAPI e presets', href: '/agent-os/hub' },
     { title: 'Orquestração', desc: 'Jobs, delegações e pipelines', href: '/agent-os/jobs' },
@@ -128,7 +130,7 @@ export default function AgentOsDashboardPage() {
         ))}
       </section>
 
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {quickLinks.map((link) => (
           <Link
             key={link.href}
@@ -206,7 +208,11 @@ export default function AgentOsDashboardPage() {
         <p className="text-xs text-zinc-500">
           Use <code className="font-mono">install_mcp_server</code> ou{' '}
           <code className="font-mono">register_mcp_servers</code> no agent-os para expor APIs
-          OpenAPI sem configurar processos separados no mcp.json.
+          OpenAPI sem configurar processos separados no mcp.json. Defina{' '}
+          <code className="font-mono">AGENT_OS_HOST</code> por IDE (
+          <code className="font-mono">cursor</code> /{' '}
+          <code className="font-mono">antigravity</code> /{' '}
+          <code className="font-mono">claude_code</code>) para telemetria por host.
         </p>
         <pre className="text-xs overflow-x-auto rounded-lg bg-zinc-100 dark:bg-black p-4 border border-zinc-200 dark:border-zinc-800">
           {MCP_SNIPPET}

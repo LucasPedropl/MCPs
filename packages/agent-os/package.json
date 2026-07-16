@@ -8,7 +8,11 @@
   "exports": {
     ".": "./dist/index.js",
     "./knowledge": "./dist/knowledge-only.js",
-    "./projects": "./dist/projects-only.js"
+    "./projects": "./dist/projects-only.js",
+    "./telemetry": {
+      "types": "./src/telemetry-only.ts",
+      "default": "./dist/telemetry-only.js"
+    }
   },
   "bin": {
     "agent-os": "dist/index.js"

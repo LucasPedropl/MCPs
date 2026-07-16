@@ -7,8 +7,12 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { getToolFilter, type ToolFilter } from "../config/env.js";
 
-/** Nunca ocultas: status e o lookup de docs sob demanda. */
-export const ALWAYS_VISIBLE = new Set(["agent_os_status", "get_usage_guide"]);
+/** Nunca ocultas: status, docs sob demanda e stats de uso. */
+export const ALWAYS_VISIBLE = new Set([
+  "agent_os_status",
+  "get_usage_guide",
+  "mcp_usage_stats",
+]);
 
 const hiddenTools = new Set<string>();
 

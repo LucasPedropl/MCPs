@@ -388,9 +388,13 @@ describe("isToolHidden", () => {
   });
 
   it("ALWAYS_VISIBLE nunca oculta", () => {
-    const f = filter(["remember"], ["agent_os_status", "get_usage_guide"]);
+    const f = filter(
+      ["remember"],
+      ["agent_os_status", "get_usage_guide", "mcp_usage_stats"],
+    );
     assert.equal(isToolHidden("agent_os_status", f), false);
     assert.equal(isToolHidden("get_usage_guide", f), false);
+    assert.equal(isToolHidden("mcp_usage_stats", f), false);
   });
 
   it("sem filtro → nada oculto", () => {

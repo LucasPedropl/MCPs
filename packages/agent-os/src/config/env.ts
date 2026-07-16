@@ -164,6 +164,43 @@ export function getEnabledModules(): Set<AgentOsModule> {
   return enabled;
 }
 
+export type AgentOsHost = "cursor" | "antigravity" | "claude_code" | "unknown";
+
+const AGENT_OS_HOSTS = new Set<AgentOsHost>([
+  "cursor",
+  "antigravity",
+  "claude_code",
+  "unknown",
+]);
+
+/**
+ * Host que está rodando este processo MCP (via AGENT_OS_HOST no mcp.json).
+ * Sem env → unknown (breakdown por IDE fica inútil até configurar).
+ */
+export function getAgentOsHost(): AgentOsHost {
+  const raw = envFirst("AGENT_OS_HOST")?.toLowerCase();
+  if (!raw) {
+    return "unknown";
+  }
+  if (AGENT_OS_HOSTS.has(raw as AgentOsHost)) {
+    return raw as AgentOsHost;
+  }
+  console.error(
+    `[agent-os] AGENT_OS_HOST inválido ('${raw}') — usando 'unknown'. ` +
+      "Valores: cursor | antigravity | claude_code.",
+  );
+  return "unknown";
+}
+
+/** Kill switch: AGENT_OS_TELEMETRY=0 desliga gravação de tool events. */
+export function isTelemetryEnabled(): boolean {
+  const raw = envFirst("AGENT_OS_TELEMETRY");
+  if (raw === undefined) {
+    return true;
+  }
+  return raw !== "0" && raw.toLowerCase() !== "false";
+}
+
 /** Decodifica o payload do JWT Supabase para inspecionar o role da key. */
 export function getSupabaseKeyRole(): string | null {
   const key = getAgentOsSupabaseKey();

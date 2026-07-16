@@ -19,7 +19,8 @@ conteúdo é servido via tool `get_usage_guide`.
         "AGENT_OS_SUPABASE_URL": "https://<seu-projeto>.supabase.co",
         "AGENT_OS_SUPABASE_KEY": "<service_role recomendado>",
         "AGENT_OS_DEFAULT_CWD": "C:/codigo/pessoal/seu-projeto",
-        "AGENT_OS_MODULES": "all"
+        "AGENT_OS_MODULES": "all",
+        "AGENT_OS_HOST": "cursor"
       }
     }
   }
@@ -35,8 +36,13 @@ conteúdo é servido via tool `get_usage_guide`.
   ignorado (não vira path literal).
 - **`AGENT_OS_MODULES`**: csv de módulos para servidores enxutos, ex.
   `memory,context,data,policy`. Ausente ou `all` habilita tudo.
+- **`AGENT_OS_HOST`**: `cursor` | `antigravity` | `claude_code` — atribui
+  telemetria de tools ao IDE. Sem isso, events ficam como `unknown`.
+- **`AGENT_OS_TELEMETRY=0`**: desliga gravação de `agent_tool_events`.
 - **`AGENT_OS_KEEPALIVE_WORKER=1`**: processo 24/7 para keep-alive confiável
   (`npm run keepalive:worker -w @mcps/agent-os` após build).
+
+Telemetria: tool `mcp_usage_stats` + painel `/agent-os/usage` no servidor-web.
 
 ## Armazenamento de segredos (PAT)
 

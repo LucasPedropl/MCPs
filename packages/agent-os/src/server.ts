@@ -2,6 +2,10 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { AGENT_OS_INSTRUCTIONS, registerCoreTools } from "./tools/core-tools.js";
 import { applyToolFilter } from "./tools/tool-filter.js";
+import {
+  applyToolTelemetry,
+  setRegisteringModule,
+} from "./tools/tool-telemetry.js";
 import { registerMemoryTools } from "./tools/memory-tools.js";
 import { registerBootstrapTools } from "./tools/bootstrap-tools.js";
 import { registerContextTools } from "./tools/context-tools.js";
@@ -51,14 +55,18 @@ export function createAgentOsServer(): McpServer {
   );
 
   applyToolFilter(server);
+  applyToolTelemetry(server);
 
   const enabled = getEnabledModules();
+  setRegisteringModule("core");
   registerCoreTools(server);
   for (const [module, register] of Object.entries(MODULE_REGISTRARS)) {
     if (enabled.has(module as AgentOsModule)) {
+      setRegisteringModule(module);
       register(server);
     }
   }
+  setRegisteringModule(null);
 
   return server;
 }

@@ -30,6 +30,7 @@ delegação multi-IDE, hub Supabase multi-conta e hub lazy de MCPs externos.
 | Consultar skill/playbook | `resolve_skills` / `playbook` (action=get) |
 | Ver/editar portfólio de projetos | `list_agent_projects` / `upsert_project` / `sync_project` |
 | Validar código ao final | `run_quality_gates` → `run_autofix_loop` se falhar |
+| Stats de uso das tools | `mcp_usage_stats` (ou painel `/agent-os/usage`) |
 | Detalhes de uma tool (doc completa) | `get_usage_guide` tool_name=... |
 
 ## Limitações conhecidas
@@ -72,7 +73,7 @@ o pattern contém `*` sem sintaxe regex.
 | runner | `run_quality_gates`, `summarize_diff`, `rollback_task`, `run_autofix_loop` |
 
 Ex.: `AGENT_OS_MODULES=memory,context,data,policy` sobe um servidor enxuto só
-com memória + banco. Core (`agent_os_status`, `get_usage_guide`) sempre ativo.
+com memória + banco. Core (`agent_os_status`, `get_usage_guide`, `mcp_usage_stats`) sempre ativo.
 
 ## Envs de eficiência de tokens
 
@@ -85,8 +86,11 @@ com memória + banco. Core (`agent_os_status`, `get_usage_guide`) sempre ativo.
 - `AGENT_OS_TOOLS_ALLOW` / `AGENT_OS_TOOLS_DENY` (csv, default unset): filtro de
   superfície de tools por cliente (ex.:
   `AGENT_OS_TOOLS_DENY=rollback_task,delete_project,webhooks`); allow não-vazio
-  = só esses, deny remove depois. `agent_os_status` e `get_usage_guide` nunca
-  são ocultadas.
+  = só esses, deny remove depois. `agent_os_status`, `get_usage_guide` e
+  `mcp_usage_stats` nunca são ocultadas.
+- `AGENT_OS_HOST` (`cursor`|`antigravity`|`claude_code`): atribui telemetria
+  ao IDE. Sem isso, events ficam como `unknown`.
+- `AGENT_OS_TELEMETRY=0`: desliga gravação de `agent_tool_events`.
 
 ## Nota sobre Supabase
 

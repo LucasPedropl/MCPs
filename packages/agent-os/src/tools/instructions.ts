@@ -30,6 +30,7 @@ delegação multi-IDE, hub Supabase multi-conta e hub lazy de MCPs externos.
 | Consultar skill/playbook | \`resolve_skills\` / \`playbook\` (action=get) |
 | Ver/editar portfólio de projetos | \`list_agent_projects\` / \`upsert_project\` / \`sync_project\` |
 | Validar código ao final | \`run_quality_gates\` → \`run_autofix_loop\` se falhar |
+| Stats de uso das tools | \`mcp_usage_stats\` (ou painel /agent-os/usage) |
 | Detalhes de uma tool (doc completa) | \`get_usage_guide\` tool_name=... |
 
 ## Limitações conhecidas (leia antes de confiar)
@@ -64,6 +65,8 @@ delegação multi-IDE, hub Supabase multi-conta e hub lazy de MCPs externos.
 - \`AGENT_OS_TOOL_DOCS\` (compact|full, default compact): descrições compactas
   no tools/list; doc completa sob demanda via get_usage_guide tool_name=...
 - \`AGENT_OS_TOOLS_ALLOW\` / \`AGENT_OS_TOOLS_DENY\` (csv, default unset): filtro
-  de superfície de tools por cliente; agent_os_status e get_usage_guide nunca
-  são ocultadas.
+  de superfície de tools por cliente; agent_os_status, get_usage_guide e
+  mcp_usage_stats nunca são ocultadas.
+- \`AGENT_OS_HOST\` (cursor|antigravity|claude_code): atribui telemetria ao IDE.
+- \`AGENT_OS_TELEMETRY=0\`: desliga gravação de agent_tool_events.
 `;

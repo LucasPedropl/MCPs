@@ -11,6 +11,7 @@ import {
   Sparkles,
   BookOpen,
   FolderKanban,
+  Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +21,7 @@ interface SidebarProps {
 
 const NAV_ITEMS = [
   { name: 'Overview', icon: Brain, path: '/agent-os' },
+  { name: 'Usage', icon: Activity, path: '/agent-os/usage' },
   { name: 'Memória', icon: BookOpen, path: '/agent-os/memory' },
   { name: 'Knowledge', icon: Sparkles, path: '/agent-os/knowledge' },
   { name: 'APIs OpenAPI', icon: Server, path: '/agent-os/mcp-servers' },
