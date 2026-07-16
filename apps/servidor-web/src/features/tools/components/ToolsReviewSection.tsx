@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { toolsBatchFormSchema, ToolsBatchFormData, CreateMcpToolInput } from '../schemas/toolSchema';
 import { CreateMcpServerInput } from '@/features/servers/schemas/serverSchema';
 import { ToolEditRow } from './ToolEditRow';
@@ -41,7 +41,7 @@ export function ToolsReviewSection({ parsedData, onCancel, onConfirmSave, isSavi
     formState: { errors },
     reset
   } = useForm<ToolsBatchFormData>({
-    resolver: zodResolver(toolsBatchFormSchema),
+    resolver: standardSchemaResolver(toolsBatchFormSchema),
     defaultValues: {
       tools: parsedData.tools.map((t) => ({
         original_name: t.originalName,

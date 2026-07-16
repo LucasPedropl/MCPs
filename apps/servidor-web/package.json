@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build:deps": "node ./scripts/build-monorepo-deps.mjs",
+    "build": "npm run build:deps && next build",
     "start": "next start",
     "lint": "eslint"
   },

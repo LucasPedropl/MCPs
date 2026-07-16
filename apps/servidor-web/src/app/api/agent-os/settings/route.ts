@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "node:path";
 import { getAgentOsDb } from "@/lib/agent-os-db";
+import { getMonorepoRoot } from "@/lib/agent-os-paths";
 
 import type { SettingFlag } from "@/features/agent-os/types/settings";
 
@@ -31,8 +32,9 @@ function maskKey(value: string | undefined): string | null {
 }
 
 function agentOsDistPath(): string {
-  const monorepoRoot = path.resolve(process.cwd(), "..", "..");
-  return path.join(monorepoRoot, "packages", "agent-os", "dist", "index.js").replace(/\\/g, "/");
+  return path
+    .join(getMonorepoRoot(), "packages", "agent-os", "dist", "index.js")
+    .replace(/\\/g, "/");
 }
 
 function buildMcpSnippet(url: string | undefined, keyPlaceholder: string) {

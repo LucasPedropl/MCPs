@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { swaggerInputSchema, SwaggerInputFormData } from '../schemas/swaggerSchema';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -20,7 +20,7 @@ export function SwaggerInputForm({ onSubmitUrl, isLoading }: SwaggerInputFormPro
     handleSubmit,
     formState: { errors },
   } = useForm<SwaggerInputFormData>({
-    resolver: zodResolver(swaggerInputSchema),
+    resolver: standardSchemaResolver(swaggerInputSchema),
     defaultValues: {
       swaggerUrl: 'https://lojas.vlks.com.br/swagger/v1/swagger.json',
     },

@@ -2,14 +2,26 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 
+/**
+ * turbopackIgnore: avoid NFT tracing the whole monorepo from process.cwd()/../..
+ * Prefer explicit env on Vercel when these paths are needed at runtime.
+ */
 export function getMonorepoRoot(): string {
-  return path.resolve(process.cwd(), "..", "..");
+  const fromEnv = process.env.AGENT_OS_MONOREPO_ROOT?.trim();
+  if (fromEnv) return path.resolve(fromEnv);
+  return path.resolve(/* turbopackIgnore: true */ process.cwd(), "..", "..");
 }
 
 export function getPresetsPath(): string {
   const custom = process.env.AGENT_OS_PRESETS_PATH;
   if (custom) return path.resolve(custom);
-  return path.join(getMonorepoRoot(), "packages", "agent-os", "presets", "mcp-presets.json");
+  return path.join(
+    getMonorepoRoot(),
+    "packages",
+    "agent-os",
+    "presets",
+    "mcp-presets.json",
+  );
 }
 
 export function getSupabaseHubConfigPath(): string {
@@ -22,7 +34,13 @@ export function getSupabaseHubConfigPath(): string {
 export function getOpenApiEnginePath(): string {
   const fromEnv = process.env.AGENT_OS_OPENAPI_ENGINE_PATH;
   if (fromEnv) return path.resolve(fromEnv);
-  return path.join(getMonorepoRoot(), "packages", "openapi-engine", "dist", "index.js");
+  return path.join(
+    getMonorepoRoot(),
+    "packages",
+    "openapi-engine",
+    "dist",
+    "index.js",
+  );
 }
 
 export function slugify(value: string): string {

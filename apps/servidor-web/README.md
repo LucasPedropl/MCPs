@@ -18,6 +18,22 @@ npm run dev:servidor-web
 
 Abra [http://localhost:3000/agent-os](http://localhost:3000/agent-os).
 
+## Deploy na Vercel (monorepo)
+
+O dashboard é `apps/servidor-web`, **não** `packages/agent-os`.
+
+No projeto Vercel:
+
+| Setting | Valor |
+|---------|--------|
+| **Root Directory** | `apps/servidor-web` |
+| Framework | Next.js |
+| Install / Build | já definidos em [`vercel.json`](./vercel.json) (instala na raiz do monorepo + `build:packages`) |
+
+Se o log mostrar `> @mcps/agent-os@0.1.0 build` + `tsup`, o Root Directory está errado.
+
+Env vars (Production): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DASHBOARD_SESSION_SECRET`.
+
 ## Variáveis de ambiente (`.env.local`)
 
 | Variável | Obrigatória | Descrição |
