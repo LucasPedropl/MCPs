@@ -30,7 +30,11 @@ import {
 import { isHitlEnabled } from "../features/jobs/job-hitl.js";
 import { probeCursorModels } from "../providers/cursor/model-probe.js";
 import { getDelegationLang, getDelegationLangHint } from "../features/delegation/delegation-lang.js";
-import { pickAntigravityModel, inferTaskCategory } from "../providers/antigravity/model-router.js";
+import {
+  pickAntigravityModel,
+  inferTaskCategory,
+  getRegisteredModelIds,
+} from "../providers/antigravity/model-router.js";
 import { getClient } from "./delegation.js";
 import { formatAntigravityQuotas } from "../features/observability/quota-format.js";
 import { checkAntigravityWorkspaceMatch } from "../client/workspace-resolve.js";
@@ -105,6 +109,10 @@ export function registerBridgeTools(server: McpServer): void {
 
       let quotaPools: ReturnType<typeof formatAntigravityQuotas> | null = null;
       let workspaceMatch: ReturnType<typeof checkAntigravityWorkspaceMatch> | null = null;
+      let modelRegistryDrift: {
+        unknownToAntigravity: string[];
+        checkedAgainst: number;
+      } | null = null;
 
       try {
         const instance = await resolveInstance();
@@ -130,6 +138,25 @@ export function registerBridgeTools(server: McpServer): void {
         quotaPools = formatAntigravityQuotas(
           configs as Parameters<typeof formatAntigravityQuotas>[0],
         );
+
+        // Drift do registry local: IDs hardcoded que o Antigravity não conhece
+        // mais quebram o model-router silenciosamente após updates da IDE.
+        const knownModelIds = new Set(
+          (configs as Array<Record<string, unknown>>)
+            .map((config) =>
+              String(config["model"] ?? config["modelEnum"] ?? config["modelId"] ?? ""),
+            )
+            .filter(Boolean),
+        );
+        if (knownModelIds.size > 0) {
+          modelRegistryDrift = {
+            unknownToAntigravity: getRegisteredModelIds().filter(
+              (id) => !knownModelIds.has(id),
+            ),
+            checkedAgainst: knownModelIds.size,
+          };
+        }
+
         antigravitySummary = {
           status: antigravityHealth.status,
           url: antigravityHealth.url,
@@ -160,6 +187,7 @@ export function registerBridgeTools(server: McpServer): void {
             selectedAntigravityWorkspace: selectedWorkspace,
             antigravityHealth,
             quotaPools,
+            modelRegistryDrift,
             workspaceMatch,
             antigravityCascadePool: getCascadePoolStats(),
             circuitBreaker: getCircuitBreakerStats(),

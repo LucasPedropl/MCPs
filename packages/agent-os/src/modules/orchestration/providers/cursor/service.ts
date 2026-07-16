@@ -78,6 +78,7 @@ function runCursorAgent(
   timeoutMs: number,
   onChunk?: (delta: string) => void | Promise<void>,
   signal?: AbortSignal,
+  resumeSessionId?: string,
 ): Promise<{ stdout: string; stderr: string; exitCode: number | null }> {
   const { command, argsPrefix } = resolveCursorInvocation();
   const args = [
@@ -91,6 +92,7 @@ function runCursorAgent(
     workspacePath,
     "--model",
     model,
+    ...(resumeSessionId ? ["--resume", resumeSessionId] : []),
     prompt,
   ];
 
@@ -180,6 +182,7 @@ export async function delegateToCursor(
     timeoutMs,
     input.onChunk,
     input.signal,
+    input.resumeSessionId,
   );
 
   if (exitCode !== 0 && !stdout.trim()) {

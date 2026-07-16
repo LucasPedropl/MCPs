@@ -104,6 +104,12 @@ export async function acquireWorkspaceLock(
     .eq("lock_type", "exclusive")
     .gt("expires_at", new Date().toISOString());
 
+  if (verifyError) {
+    console.error(
+      `[lock-store] verificação pós-insert do lock falhou (mantendo lock otimista): ${verifyError.message}`,
+    );
+  }
+
   if (!verifyError) {
     const winner = (verifyRows ?? [])
       .map((row) => mapRow(row as Record<string, unknown>))

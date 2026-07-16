@@ -26,7 +26,11 @@ async function loadKeytar(): Promise<KeytarLike | null> {
     }
     keytarModule = null;
     return null;
-  } catch {
+  } catch (error) {
+    // Sem keytar o PAT cai para arquivo plaintext — o usuário precisa saber.
+    console.error(
+      `[secret-vault] keytar indisponível (${error instanceof Error ? error.message : String(error)}) — segredos usarão fallback em arquivo.`,
+    );
     keytarModule = null;
     return null;
   }

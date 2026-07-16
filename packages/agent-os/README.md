@@ -29,10 +29,24 @@ conteúdo é servido via tool `get_usage_guide`.
 - **`AGENT_OS_SUPABASE_KEY`**: use a **service_role** key. Com anon key,
   escritas em `agent_projects` (bootstrap/upsert de perfil) são bloqueadas por
   RLS e degradam com warning.
+- **`AGENT_OS_DEFAULT_CWD`**: fallback quando o host não injeta pastas abertas.
+  Preferência de resolução: `WORKSPACE_FOLDER_PATHS` (Cursor) → este env →
+  `process.cwd`. Use `"${workspaceFolder}"` — se não expandir, o valor é
+  ignorado (não vira path literal).
 - **`AGENT_OS_MODULES`**: csv de módulos para servidores enxutos, ex.
   `memory,context,data,policy`. Ausente ou `all` habilita tudo.
 - **`AGENT_OS_KEEPALIVE_WORKER=1`**: processo 24/7 para keep-alive confiável
   (`npm run keepalive:worker -w @mcps/agent-os` após build).
+
+## Armazenamento de segredos (PAT)
+
+Os PATs das contas Supabase são guardados no **keytar** (credencial nativa do
+SO). Se o keytar não carregar, o fallback é **arquivo em texto plano**
+(`~/.supabase-mcp-hub/.secrets/{accountId}.pat` ou
+`$SUPABASE_HUB_CONFIG_DIR/.secrets/`) — o `chmod 600` é ignorado no Windows,
+então o arquivo fica legível para qualquer processo do usuário. O servidor
+loga `[secret-vault] keytar indisponível...` quando isso acontece.
+Alternativa sem arquivo: defina `SUPABASE_HUB_PAT_<ACCOUNT_ID>` no env.
 
 ## Providers de delegação
 
@@ -90,7 +104,13 @@ substring. **Atenção**: `check_policy` é allow-by-default — sem match, reto
 
 ## Skills canônicas
 
-Diretório [`../../skills`](../../skills) na raiz do monorepo.
+Diretório [`../../skills`](../../skills) na raiz do monorepo. Cada pasta é uma
+skill (`SKILL.md` obrigatório). Sidecars opcionais (`scripts/`, `references/`,
+`assets/` e arquivos soltos na raiz além do SKILL.md) entram em `files_json` no
+Supabase via `sync_skills direction=from_repo`. `to_host` materializa o bundle
+em `.cursor/skills/<name>/` **e** `.claude/skills/<name>/` (caps: 100KB/arquivo,
+500KB total, 40 arquivos). `get_skill` sozinho não grava scripts em disco —
+só o sync `to_host` deixa o host executar scripts.
 
 ## Migração
 

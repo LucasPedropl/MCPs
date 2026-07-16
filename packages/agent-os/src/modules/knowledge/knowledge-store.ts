@@ -6,6 +6,21 @@ import {
   isSupabaseConfigured,
   pgrestQuote,
 } from "../../features/supabase-client.js";
+import {
+  collectSkillSidecarFiles,
+  materializeSkillFiles,
+  normalizeFilesJson,
+  type SkillFilesJson,
+} from "./skill-files.js";
+
+export type { SkillFilesJson, SkillFileEntry, SkillFileManifestEntry } from "./skill-files.js";
+export {
+  collectSkillSidecarFiles,
+  materializeSkillFiles,
+  estimateFilesJsonBytes,
+  filesJsonManifest,
+  normalizeFilesJson,
+} from "./skill-files.js";
 
 export interface SkillRecord {
   id: string;
@@ -14,7 +29,24 @@ export interface SkillRecord {
   version: string;
   scope: string;
   content_md: string;
+  files_json: SkillFilesJson;
   workspace_path: string | null;
+}
+
+function coerceSkillRecord(row: Record<string, unknown> | SkillRecord): SkillRecord {
+  return {
+    id: String(row.id ?? ""),
+    name: String(row.name ?? ""),
+    description: String(row.description ?? ""),
+    version: String(row.version ?? "1.0.0"),
+    scope: String(row.scope ?? "global"),
+    content_md: String(row.content_md ?? ""),
+    files_json: normalizeFilesJson(row.files_json),
+    workspace_path:
+      row.workspace_path === null || row.workspace_path === undefined
+        ? null
+        : String(row.workspace_path),
+  };
 }
 
 const SKILLS_ROOT = getSkillsRoot();
@@ -43,31 +75,42 @@ function readLocalSkillDirs(skillsRoot = SKILLS_ROOT): Array<{
   name: string;
   description: string;
   content_md: string;
+  files_json: SkillFilesJson;
+  warnings: string[];
 }> {
   if (!fs.existsSync(skillsRoot)) {
     return [];
   }
 
   const entries = fs.readdirSync(skillsRoot, { withFileTypes: true });
-  const skills: Array<{ name: string; description: string; content_md: string }> =
-    [];
+  const skills: Array<{
+    name: string;
+    description: string;
+    content_md: string;
+    files_json: SkillFilesJson;
+    warnings: string[];
+  }> = [];
 
   for (const entry of entries) {
     if (!entry.isDirectory()) {
       continue;
     }
 
-    const skillFile = path.join(skillsRoot, entry.name, "SKILL.md");
+    const skillDir = path.join(skillsRoot, entry.name);
+    const skillFile = path.join(skillDir, "SKILL.md");
     if (!fs.existsSync(skillFile)) {
       continue;
     }
 
     const content = fs.readFileSync(skillFile, "utf8");
     const parsed = parseSkillMarkdown(content, entry.name);
+    const { files_json, warnings } = collectSkillSidecarFiles(skillDir);
     skills.push({
       name: parsed.name,
       description: parsed.description,
       content_md: content,
+      files_json,
+      warnings: warnings.map((w) => `${parsed.name}: ${w}`),
     });
   }
 
@@ -82,6 +125,7 @@ function listLocalSkills(): SkillRecord[] {
     version: "1.0.0",
     scope: "global",
     content_md: skill.content_md,
+    files_json: skill.files_json,
     workspace_path: null,
   }));
 }
@@ -90,6 +134,7 @@ function listLocalSkills(): SkillRecord[] {
 export async function syncSkillsFromRepo(skillsRoot?: string): Promise<{
   synced: number;
   names: string[];
+  warnings: string[];
   skillsRoot: string;
 }> {
   if (!isSupabaseConfigured()) {
@@ -99,18 +144,21 @@ export async function syncSkillsFromRepo(skillsRoot?: string): Promise<{
   const root = skillsRoot ? path.resolve(skillsRoot) : SKILLS_ROOT;
   const local = readLocalSkillDirs(root);
   const names: string[] = [];
+  const warnings: string[] = [];
 
   for (const skill of local) {
+    warnings.push(...skill.warnings);
     await upsertSkill({
       name: skill.name,
       description: skill.description,
       contentMd: skill.content_md,
+      filesJson: skill.files_json,
       scope: "global",
     });
     names.push(skill.name);
   }
 
-  return { synced: names.length, names, skillsRoot: root };
+  return { synced: names.length, names, warnings, skillsRoot: root };
 }
 
 export async function listSkills(workspacePath?: string): Promise<SkillRecord[]> {
@@ -134,7 +182,9 @@ export async function listSkills(workspacePath?: string): Promise<SkillRecord[]>
     throw new Error(`Falha ao listar skills: ${error.message}`);
   }
 
-  const remote = (data ?? []) as SkillRecord[];
+  const remote = (data ?? []).map((row) =>
+    coerceSkillRecord(row as Record<string, unknown>),
+  );
   const merged = new Map<string, SkillRecord>();
   for (const skill of [...local, ...remote]) {
     merged.set(`${skill.name}@${skill.version}`, skill);
@@ -182,6 +232,7 @@ export async function upsertSkill(input: {
   name: string;
   description: string;
   contentMd: string;
+  filesJson?: SkillFilesJson;
   version?: string;
   scope?: string;
   workspacePath?: string;
@@ -194,6 +245,7 @@ export async function upsertSkill(input: {
         name: input.name,
         description: input.description,
         content_md: input.contentMd,
+        files_json: input.filesJson ?? {},
         version: input.version ?? "1.0.0",
         scope: input.scope ?? "global",
         workspace_path: input.workspacePath ?? null,
@@ -208,7 +260,7 @@ export async function upsertSkill(input: {
     throw new Error(`Falha ao salvar skill: ${error.message}`);
   }
 
-  return data as SkillRecord;
+  return coerceSkillRecord(data as Record<string, unknown>);
 }
 
 export async function getSkill(name: string, version = "1.0.0"): Promise<SkillRecord | null> {
@@ -227,7 +279,7 @@ export async function getSkill(name: string, version = "1.0.0"): Promise<SkillRe
       throw new Error(`Falha ao buscar skill: ${error.message}`);
     }
     if (data) {
-      return data as SkillRecord;
+      return coerceSkillRecord(data as Record<string, unknown>);
     }
   }
 
@@ -343,6 +395,8 @@ export async function listProjectProfiles(): Promise<
   }>;
 }
 
+export type SkillSyncHost = "cursor" | "claude_code";
+
 export function renderSkillForHost(
   skill: SkillRecord,
   host: "cursor" | "antigravity" | "claude_code",
@@ -351,28 +405,61 @@ export function renderSkillForHost(
     return skill.content_md;
   }
 
+  // Já tem frontmatter — não re-embrulhar (evita double frontmatter).
+  if (/^---\r?\n/.test(skill.content_md.trimStart())) {
+    return skill.content_md;
+  }
+
   return `---\nname: ${skill.name}\ndescription: ${skill.description}\n---\n\n${skill.content_md}`;
+}
+
+function hostSkillsRelativeDir(host: SkillSyncHost): string {
+  return host === "claude_code"
+    ? path.join(".claude", "skills")
+    : path.join(".cursor", "skills");
 }
 
 export async function syncSkillsToHost(
   workspacePath: string,
-  host: "cursor" = "cursor",
-): Promise<{ written: string[] }> {
-  const skills = await listSkills(workspacePath);
-  const targetDir = path.join(workspacePath, ".cursor", "skills");
-
-  fs.mkdirSync(targetDir, { recursive: true });
-  const written: string[] = [];
-
-  for (const skill of skills) {
-    const skillDir = path.join(targetDir, skill.name);
-    fs.mkdirSync(skillDir, { recursive: true });
-    const filePath = path.join(skillDir, "SKILL.md");
-    fs.writeFileSync(filePath, renderSkillForHost(skill, host), "utf8");
-    written.push(filePath);
+  options?: {
+    hosts?: SkillSyncHost[];
+    /** @deprecated use options.hosts — mantido para call sites antigos */
+    host?: "cursor" | "claude_code" | "antigravity";
+  } | SkillSyncHost,
+): Promise<{ written: string[]; hosts: SkillSyncHost[] }> {
+  // Compat: syncSkillsToHost(path, "cursor")
+  let hosts: SkillSyncHost[] = ["cursor", "claude_code"];
+  if (typeof options === "string") {
+    hosts = options === "claude_code" ? ["claude_code"] : ["cursor"];
+  } else if (options?.hosts?.length) {
+    hosts = options.hosts;
+  } else if (options?.host) {
+    hosts =
+      options.host === "claude_code"
+        ? ["claude_code"]
+        : ["cursor"];
   }
 
-  return { written };
+  const skills = await listSkills(workspacePath);
+  const written: string[] = [];
+  const resolvedWorkspace = path.resolve(workspacePath);
+
+  for (const host of hosts) {
+    const targetDir = path.join(resolvedWorkspace, hostSkillsRelativeDir(host));
+    fs.mkdirSync(targetDir, { recursive: true });
+
+    for (const skill of skills) {
+      const skillDir = path.join(targetDir, skill.name);
+      fs.mkdirSync(skillDir, { recursive: true });
+      const filePath = path.join(skillDir, "SKILL.md");
+      const renderHost = host === "claude_code" ? "claude_code" : "cursor";
+      fs.writeFileSync(filePath, renderSkillForHost(skill, renderHost), "utf8");
+      written.push(filePath);
+      written.push(...materializeSkillFiles(skillDir, skill.files_json ?? {}));
+    }
+  }
+
+  return { written, hosts };
 }
 
 export async function getLatestPlaybook(aliasOrServerId: string): Promise<string | null> {

@@ -66,6 +66,39 @@ export interface GuardOptions {
 }
 
 /**
+ * Extrai o texto de um CallToolResult vindo de um MCP filho quando o content
+ * é composto só de itens de texto — evita re-serializar o envelope inteiro
+ * (o double-encode escaparia o JSON interno, inflando ~8% os tokens).
+ * Retorna null quando há itens não-texto (imagem, resource...) — nesse caso
+ * o caller deve serializar o envelope normalmente.
+ */
+export function unwrapMcpResult(
+  result: unknown,
+): { text: string; isError: boolean } | null {
+  if (!result || typeof result !== "object") {
+    return null;
+  }
+  const content = (result as { content?: unknown }).content;
+  if (!Array.isArray(content) || content.length === 0) {
+    return null;
+  }
+
+  const texts: string[] = [];
+  for (const item of content) {
+    const entry = item as { type?: unknown; text?: unknown } | null;
+    if (!entry || entry.type !== "text" || typeof entry.text !== "string") {
+      return null;
+    }
+    texts.push(entry.text);
+  }
+
+  return {
+    text: texts.join("\n"),
+    isError: Boolean((result as { isError?: unknown }).isError),
+  };
+}
+
+/**
  * Serializa compacto (sem pretty-print — 10-30% menor) e aplica o guard.
  * Para tools proxy cujo resultado vem de fora e pode ser enorme.
  * Tools de admin/export devem continuar em jsonText (sem truncamento silencioso).

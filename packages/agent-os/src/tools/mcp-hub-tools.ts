@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { errorText, guardedJsonText, jsonText } from "@mcps/shared";
+import { errorText, guardedJsonText, jsonText, unwrapMcpResult } from "@mcps/shared";
 import { getMcpResultMaxChars } from "../config/env.js";
 import {
   callChildTool,
@@ -310,10 +310,19 @@ export function registerMcpHubTools(server: McpServer): void {
         return errorText(`MCP '${args.alias}' não encontrado.`);
       }
       const result = await callChildTool(connection, args.tool_name, args.arguments);
-      return guardedJsonText(result, {
+      const guardOptions = {
         maxChars: args.max_chars ?? getMcpResultMaxChars(),
         hint: "; use get_mcp_tool_schema {alias, tool_name} para achar params de paginação/filtro",
-      });
+      };
+
+      // Conteúdo só-texto do filho passa direto (sem re-serializar o envelope,
+      // que escaparia o JSON interno e inflaria ~8% os tokens).
+      const unwrapped = unwrapMcpResult(result);
+      if (unwrapped) {
+        const guarded = guardedJsonText(unwrapped.text, guardOptions);
+        return unwrapped.isError ? { ...guarded, isError: true } : guarded;
+      }
+      return guardedJsonText(result, guardOptions);
     },
   );
 

@@ -21,8 +21,7 @@
     "start": "node dist/index.js",
     "keepalive:worker": "node dist/keepalive-worker-entry.js",
     "test": "tsx --test tests/**/*.test.ts",
-    "typecheck": "node --max-old-space-size=4096 ../../node_modules/typescript/bin/tsc -p tsconfig.check.json --noEmit",
-    "typecheck:full": "node --max-old-space-size=8192 ../../node_modules/typescript/bin/tsc --noEmit"
+    "typecheck": "node --max-old-space-size=4096 ../../node_modules/typescript/bin/tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@mcps/openapi-engine": "*",

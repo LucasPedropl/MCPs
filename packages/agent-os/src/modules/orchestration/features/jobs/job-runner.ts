@@ -131,7 +131,10 @@ async function wasCancelledElsewhere(jobId: string): Promise<boolean> {
   try {
     const current = await getJob(jobId);
     return current?.status === "cancelled";
-  } catch {
+  } catch (error) {
+    console.error(
+      `[job-runner] checagem de cancelamento do job ${jobId} falhou (assumindo não-cancelado): ${error instanceof Error ? error.message : String(error)}`,
+    );
     return false;
   }
 }

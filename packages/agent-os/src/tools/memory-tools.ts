@@ -18,7 +18,7 @@ import {
 } from "../modules/memory/memory-store.js";
 import { slimMemoryRecall } from "../modules/memory/memory-slim.js";
 import { invalidateContextCache } from "../modules/context/context-assembler.js";
-import { importRulesFromWorkspace, seedPedroPreferences } from "../modules/memory/memory-seed.js";
+import { importRulesFromWorkspace } from "../modules/memory/memory-seed.js";
 import { isSupabaseConfigured } from "../features/supabase-client.js";
 import { describeAgentTool } from "./tool-docs.js";
 import { registerSetProjectRule } from "./set-project-rule.js";
@@ -285,15 +285,25 @@ export function registerMemoryTools(server: McpServer): void {
       description: describeAgentTool("import_from_rules"),
       inputSchema: {
         workspace_path: z.string(),
-        seed_pedro_defaults: z.boolean().optional(),
       },
     },
     async (args) => {
       const result: Record<string, unknown> = {};
-      if (args.seed_pedro_defaults) {
-        result["seeded"] = await seedPedroPreferences();
+      const imported = await importRulesFromWorkspace(args.workspace_path);
+      result["imported"] = imported;
+
+      const truncatedFiles = imported.sources.filter((source) => source.truncated);
+      if (truncatedFiles.length > 0) {
+        result["truncated_files"] = truncatedFiles.map((source) => ({
+          source: source.source,
+          original_chars: source.originalChars,
+          imported_chars: source.importedChars,
+        }));
+        result["hint"] =
+          `${truncatedFiles.length} arquivo(s) excederam 4000 chars e foram importados parcialmente — ` +
+          "considere dividir a regra ou registrá-la como skill (sync_skills).";
       }
-      result["imported"] = await importRulesFromWorkspace(args.workspace_path);
+
       return jsonText(result);
     },
   );

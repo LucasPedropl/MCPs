@@ -1,5 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  "files": ["src/tools/memory-tools.ts"],
-  "include": []
-}

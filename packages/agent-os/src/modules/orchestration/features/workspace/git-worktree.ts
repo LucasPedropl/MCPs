@@ -92,7 +92,9 @@ export function releaseDelegationWorkspace(workspace: DelegationWorkspace): void
   }
   try {
     runGit(workspace.basePath, ["worktree", "remove", "--force", workspace.worktreePath]);
-  } catch {
-    // worktree pode já ter sido removido
+  } catch (error) {
+    console.error(
+      `[git] worktree remove falhou (${workspace.worktreePath}) — pode ter sobrado lixo em .bridge-worktrees: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }

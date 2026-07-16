@@ -4,6 +4,7 @@ import {
   errorText as sharedErrorText,
   guardedJsonText,
   jsonText,
+  unwrapMcpResult,
 } from "@mcps/shared";
 import { getMcpResultMaxChars } from "../../../config/env.js";
 import {
@@ -439,7 +440,12 @@ export function registerProxyTools(server: McpServer): void {
     {
       description: "Chama qualquer tool do MCP Supabase oficial no projeto ativo.",
       inputSchema: z.object({
-        toolName: z.string().min(1),
+        tool_name: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Nome da tool remota do MCP Supabase (ex.: execute_sql)"),
+        toolName: z.string().min(1).optional().describe("Alias legado de tool_name"),
         arguments: z.record(z.unknown()).default({}),
         max_chars: z
           .number()
@@ -447,12 +453,23 @@ export function registerProxyTools(server: McpServer): void {
           .describe("Cap de chars do resultado (default env AGENT_OS_MCP_RESULT_MAX_CHARS=25000; <=0 desliga)"),
       }),
     },
-    async ({ toolName, arguments: toolArgs, max_chars }) => {
+    async ({ tool_name, toolName, arguments: toolArgs, max_chars }) => {
+      const name = tool_name ?? toolName;
+      if (!name) {
+        return sharedErrorText("Informe tool_name (ex.: execute_sql).");
+      }
       try {
-        return guardedJsonText(await callSupabaseTool(toolName, toolArgs), {
+        const result = await callSupabaseTool(name, toolArgs);
+        const guardOptions = {
           maxChars: max_chars ?? getMcpResultMaxChars(),
           hint: "; para execute_sql use LIMIT/colunas específicas; para get_logs estreite o intervalo",
-        });
+        };
+        const unwrapped = unwrapMcpResult(result);
+        if (unwrapped) {
+          const guarded = guardedJsonText(unwrapped.text, guardOptions);
+          return unwrapped.isError ? { ...guarded, isError: true } : guarded;
+        }
+        return guardedJsonText(result, guardOptions);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         return errorText(message);

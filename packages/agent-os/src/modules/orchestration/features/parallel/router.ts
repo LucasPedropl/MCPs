@@ -1,24 +1,20 @@
+import { classifyIntent } from "../../routing/heuristics.js";
 import type { ParallelProviderSpec, ParallelTargetProvider, PromptCategory } from "./types.js";
 
-const REVIEW_PATTERN =
-  /\b(review|revisar|revisão|code review|audit|auditar|segurança|security)\b/i;
-const IMPLEMENT_PATTERN =
-  /\b(implement|implementar|criar|create|fix|corrigir|refator|refactor|build|desenvolv)\b/i;
-const EXPLAIN_PATTERN =
-  /\b(explain|explicar|como funciona|what is|o que é|por que|why|document)\b/i;
-
-/** Classifica o prompt para escolher providers adequados. */
+/** Classifica o prompt via heurística única (compartilhada com route_for_pedro). */
 export function classifyPrompt(prompt: string): PromptCategory {
-  if (REVIEW_PATTERN.test(prompt)) {
-    return "review";
+  switch (classifyIntent(prompt)) {
+    case "review":
+      return "review";
+    case "explain":
+      return "explain";
+    case "implement":
+    case "database":
+    case "small_fix":
+      return "implement";
+    default:
+      return "general";
   }
-  if (IMPLEMENT_PATTERN.test(prompt)) {
-    return "implement";
-  }
-  if (EXPLAIN_PATTERN.test(prompt)) {
-    return "explain";
-  }
-  return "general";
 }
 
 /**

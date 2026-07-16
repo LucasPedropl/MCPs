@@ -8,6 +8,7 @@ import {
   type BridgeProvider,
 } from "@mcps/shared";
 import { getAgentOsConfigDir } from "../../config/env.js";
+import { suggestProviderForIntent } from "../orchestration/routing/heuristics.js";
 import { recallMemory } from "../memory/memory-store.js";
 import { slimMemoryRecall } from "../memory/memory-slim.js";
 import { getProjectProfile } from "../bootstrap/bootstrap-service.js";
@@ -78,17 +79,8 @@ function writeCache(workspace: string, intent: string, payload: AssembledContext
 }
 
 function suggestProvider(intent: string): BridgeProvider | undefined {
-  const lower = intent.toLowerCase();
-  if (/(migration|migração|rls|sql|supabase|schema|banco)/.test(lower)) {
-    return "cursor";
-  }
-  if (/(feature|implement|implementar|refactor|refatora|large|grande|testes)/.test(lower)) {
-    return "antigravity";
-  }
-  if (/(bug|fix|corrigir|small|typo|rápid)/.test(lower)) {
-    return "cursor";
-  }
-  return undefined;
+  // Heurística única compartilhada com route_for_pedro e delegação paralela.
+  return suggestProviderForIntent(intent);
 }
 
 export async function assembleContext(input: {

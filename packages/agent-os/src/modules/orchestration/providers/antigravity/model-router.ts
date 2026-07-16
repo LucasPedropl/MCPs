@@ -55,6 +55,16 @@ const GPT_MODELS = {
   medium: "MODEL_OPENAI_GPT_OSS_120B_MEDIUM" as ModelEnum,
 } as const;
 
+/** IDs hardcoded do registry local — para o bridge_status detectar drift
+ * contra GetCascadeModelConfigData quando o Antigravity atualizar. */
+export function getRegisteredModelIds(): string[] {
+  return [
+    ...Object.values(GEMINI_MODELS),
+    ...Object.values(CLAUDE_MODELS),
+    ...Object.values(GPT_MODELS),
+  ].map(String);
+}
+
 /** Mapa de categoria → modelo padrão. */
 const CATEGORY_MODEL_MAP: Record<TaskCategory, ModelEnum> = {
   [TaskCategory.Summarize]: GEMINI_MODELS.fast,

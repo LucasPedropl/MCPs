@@ -32,6 +32,8 @@ export interface DelegateToAntigravityInput {
   workspacePath?: string;
   mode?: DelegationMode;
   signal?: AbortSignal;
+  /** Continua um cascade existente em vez de StartCascade (retomada de sessão). */
+  resumeCascadeId?: string;
   onProgress?: (partial: { response: string; stepCount: number }) => void | Promise<void>;
 }
 
@@ -83,12 +85,16 @@ async function runCascadeDelegation(
   const timeoutMs = input.timeoutMs ?? 120_000;
   const showInChat = mode === "bridge";
 
-  const startPayload: Record<string, unknown> = { source: 1 };
-  if (showInChat) {
-    startPayload.baseTrajectoryIdentifier = { lastActiveDoc: true };
+  let cascadeId: string;
+  if (input.resumeCascadeId) {
+    cascadeId = input.resumeCascadeId;
+  } else {
+    const startPayload: Record<string, unknown> = { source: 1 };
+    if (showInChat) {
+      startPayload.baseTrajectoryIdentifier = { lastActiveDoc: true };
+    }
+    ({ cascadeId } = await client.call<StartCascadeResponse>("StartCascade", startPayload));
   }
-
-  const { cascadeId } = await client.call<StartCascadeResponse>("StartCascade", startPayload);
 
   await client.call<SendUserCascadeMessageResponse>("SendUserCascadeMessage", {
     cascadeId,
@@ -125,7 +131,9 @@ export async function delegateToAntigravity(
   const mode = input.mode ?? "subagent";
   const agentic = input.agenticMode ?? false;
   const isolatedPath = input.workspacePath;
+  // Retomada de sessão vive no cascade — headless (agy -p) não tem resume.
   const wantsHeadless =
+    !input.resumeCascadeId &&
     isolatedPath &&
     isHeadlessAntigravityEnabled() &&
     isHeadlessAvailable() &&
@@ -149,7 +157,10 @@ export async function delegateToAntigravity(
   if (mode === "bridge") {
     try {
       return await runCascadeDelegation(client, input, "bridge");
-    } catch {
+    } catch (error) {
+      console.error(
+        `[antigravity] modo bridge falhou, degradando para subagent: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return runCascadeDelegation(client, input, "subagent");
     }
   }

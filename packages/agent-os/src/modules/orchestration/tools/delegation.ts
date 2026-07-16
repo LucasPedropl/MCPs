@@ -61,6 +61,8 @@ export type DelegationSuccess = {
   merge?: MergeDelegationResult;
   awaiting_plan_approval?: boolean;
   hint?: string;
+  /** Presente quando session_id foi informado: a sessão externa foi retomada? */
+  sessionContinuation?: "resumed" | "not_supported";
 };
 
 export type DelegationFailure = {
@@ -146,12 +148,13 @@ export async function runDelegation(params: DelegateParams): Promise<DelegationR
   } = params;
 
   void read_tools;
-  void session_id;
 
   const delegatedPrompt = prepareProviderPrompt(prompt, provider);
   const baseWorkspace = resolveWorkspacePath(params.workspace_path);
   const holderId = holder_id ?? `sync-${Date.now()}`;
-  const useWorktree = shouldUseWorktree(provider, agentic_mode);
+  // Retomada de sessão: o contexto vive na conversa externa — worktree novo
+  // trocaria o diretório da conversa no meio do caminho.
+  const useWorktree = shouldUseWorktree(provider, agentic_mode) && !session_id;
   const delegated = useWorktree
     ? prepareDelegationWorkspace(baseWorkspace, provider, holderId, true)
     : {
@@ -180,6 +183,7 @@ export async function runDelegation(params: DelegateParams): Promise<DelegationR
         workspacePath: delegated.path,
         onChunk: on_chunk,
         signal: params.signal,
+        resumeSessionId: session_id,
       });
       const merge = finalizeIsolatedWorkspace(delegated, true);
       return {
@@ -193,6 +197,7 @@ export async function runDelegation(params: DelegateParams): Promise<DelegationR
         isolatedBranch: delegated.isolated ? delegated.branch : undefined,
         worktreePath: delegated.worktreePath,
         merge,
+        sessionContinuation: session_id ? "resumed" : undefined,
       };
     }
 
@@ -206,6 +211,7 @@ export async function runDelegation(params: DelegateParams): Promise<DelegationR
       plannerMode: planner_mode,
       timeoutMs: timeout_ms,
       signal: params.signal,
+      resumeCascadeId: session_id,
       workspacePath: delegated.isolated ? delegated.path : baseWorkspace,
       onProgress: emitProgress
         ? (partial) => {
@@ -234,6 +240,11 @@ export async function runDelegation(params: DelegateParams): Promise<DelegationR
       merge,
       awaiting_plan_approval: result.awaitingPlanApproval,
       hint: result.hint,
+      sessionContinuation: session_id
+        ? result.usedHeadless
+          ? "not_supported"
+          : "resumed"
+        : undefined,
     };
   } catch (error) {
     finalizeIsolatedWorkspace(delegated, false);

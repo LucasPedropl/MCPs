@@ -17,6 +17,12 @@ import {
   normalizePath,
 } from "./workspace.js";
 
+/**
+ * Decode HEURÍSTICO do workspace_id: o encoding do Antigravity é lossy
+ * (tanto "/" quanto "_" viram "_"), então underscores reais em nomes de pasta
+ * saem corrompidos daqui. Use apenas para exibição/heurística — o matching de
+ * workspace compara no espaço ENCODED (ver instanceMatchesWorkspace).
+ */
 export function decodeWorkspaceId(workspaceId: string): string {
   if (!workspaceId.startsWith("file_")) {
     return workspaceId;
@@ -50,7 +56,6 @@ function parseCommandLine(commandLine: string): Omit<AntigravityInstance, "port"
   const workspaceMatch =
     commandLine.match(/--workspace_id\s+(\S+)/) ??
     commandLine.match(/--workspace_id=(\S+)/);
-  const pidMatch = commandLine.match(/\b(\d+)\b/);
 
   if (!csrfMatch || !portMatch) {
     return null;
@@ -60,7 +65,10 @@ function parseCommandLine(commandLine: string): Omit<AntigravityInstance, "port"
   const workspacePath = workspaceId !== "unknown" ? decodeWorkspaceId(workspaceId) : undefined;
 
   return {
-    pid: pidMatch ? Number.parseInt(pidMatch[1]!, 10) : 0,
+    // PID não é adivinhado da command line ("primeiro número" pegava pedaços
+    // de path); cada caller preenche a partir da fonte confiável (coluna do
+    // ps / prefixo ProcessId| do PowerShell).
+    pid: 0,
     csrfToken: csrfMatch[1]!,
     workspace: workspaceId,
     workspacePath,
@@ -118,7 +126,15 @@ function discoverUnixInstances(): Array<Omit<AntigravityInstance, "port" | "secu
     return psOutput
       .split("\n")
       .filter((line) => line.includes("language_server") && line.includes("csrf_token"))
-      .map((line) => parseCommandLine(line))
+      .map((line) => {
+        const parsed = parseCommandLine(line);
+        if (!parsed) {
+          return null;
+        }
+        // ps aux: PID é a 2ª coluna.
+        const pid = Number.parseInt(line.trim().split(/\s+/)[1] ?? "", 10);
+        return Number.isFinite(pid) ? { ...parsed, pid } : parsed;
+      })
       .filter(
         (instance): instance is Omit<AntigravityInstance, "port" | "secure"> => instance !== null,
       );
@@ -127,11 +143,23 @@ function discoverUnixInstances(): Array<Omit<AntigravityInstance, "port" | "secu
   }
 }
 
-function discoverRawInstances(): Array<Omit<AntigravityInstance, "port" | "secure">> {
-  if (process.platform === "win32") {
-    return discoverWindowsInstances();
+// Cache curto: cada discovery spawna PowerShell/ps — chamadas em sequência
+// (bridge_status, delegações no mesmo turno) não precisam pagar isso de novo.
+const DISCOVERY_CACHE_TTL_MS = 10_000;
+let discoveryCache: {
+  at: number;
+  instances: Array<Omit<AntigravityInstance, "port" | "secure">>;
+} | null = null;
+
+function discoverRawInstances(fresh = false): Array<Omit<AntigravityInstance, "port" | "secure">> {
+  if (!fresh && discoveryCache && Date.now() - discoveryCache.at < DISCOVERY_CACHE_TTL_MS) {
+    return discoveryCache.instances;
   }
-  return discoverUnixInstances();
+
+  const instances =
+    process.platform === "win32" ? discoverWindowsInstances() : discoverUnixInstances();
+  discoveryCache = { at: Date.now(), instances };
+  return instances;
 }
 
 function rawInstanceFromEnv(): (Omit<AntigravityInstance, "port" | "secure"> & { portOverride: number }) | null {
@@ -216,7 +244,8 @@ async function waitForTargetInstance(targetPath: string): Promise<AntigravityIns
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < timeoutMs) {
-    const instances = discoverRawInstances();
+    // fresh: estamos esperando uma instância NOVA subir — cache atrapalharia.
+    const instances = discoverRawInstances(true);
     const matched = findInstanceForTargetWorkspace(instances, targetPath);
     if (matched) {
       const ready = await tryFinalizeMatchedInstance(matched);
@@ -268,6 +297,7 @@ async function ensureAntigravityForWorkspace(
   }
 
   launchAntigravityIde(targetPath, instances.length > 0);
+  discoveryCache = null;
   return waitForTargetInstance(targetPath);
 }
 
@@ -284,7 +314,8 @@ export async function resolveInstance(
 }
 
 export function listDiscoveredInstances(): AntigravityInstance[] {
-  return discoverRawInstances().map((raw) => ({ ...raw, port: 0 }));
+  // Diagnóstico deve refletir o estado atual, não o cache.
+  return discoverRawInstances(true).map((raw) => ({ ...raw, port: 0 }));
 }
 
 export function getResolvedTargetWorkspace(): string {

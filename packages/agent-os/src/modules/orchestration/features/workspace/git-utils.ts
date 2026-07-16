@@ -34,7 +34,12 @@ export function runGitAllowFail(
 export function hasWorkingTreeChanges(cwd: string): boolean {
   try {
     return runGit(cwd, ["status", "--porcelain"]).length > 0;
-  } catch {
+  } catch (error) {
+    // false aqui pode significar "pular commit de trabalho de delegação" —
+    // não deixar a falha do git passar em silêncio.
+    console.error(
+      `[git] status falhou em ${cwd}: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return false;
   }
 }
@@ -48,7 +53,12 @@ export function branchCommitsAhead(
     const out = runGit(cwd, ["rev-list", "--count", `${baseBranch}..${branch}`]);
     const count = Number.parseInt(out, 10);
     return Number.isFinite(count) ? count : 0;
-  } catch {
+  } catch (error) {
+    // 0 aqui leva o caller a tratar a branch como vazia (e apagá-la) —
+    // registrar quando o valor vem de erro, não de contagem real.
+    console.error(
+      `[git] rev-list ${baseBranch}..${branch} falhou em ${cwd}: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return 0;
   }
 }

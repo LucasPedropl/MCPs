@@ -184,6 +184,23 @@ async function runPipelineStep(
   }
 }
 
+/**
+ * Grava metadata fazendo merge sobre o estado ATUAL do job — o snapshot
+ * capturado no início da execução fica stale e sobrescreveria campos gravados
+ * durante os steps (metrics, HITL, eventos de outras instâncias).
+ */
+async function updateJobWithFreshMetadata(
+  jobId: string,
+  patch: Record<string, unknown>,
+  rest: Parameters<typeof updateJob>[1] = {},
+): Promise<void> {
+  const current = await getJob(jobId);
+  await updateJob(jobId, {
+    ...rest,
+    metadata: { ...(current?.metadata ?? {}), ...patch },
+  });
+}
+
 /** Executa pipeline sequencial plan→implement→review→fix. */
 export async function executePipelineJob(
   pipelineJobId: string,
@@ -223,6 +240,7 @@ export async function executePipelineJob(
       (step.agentic_mode ?? false) &&
       !metadata.resumeAfterApproval
     ) {
+      const freshMetadata = (await getJob(pipelineJobId))?.metadata ?? {};
       await pauseForApproval(
         pipelineJobId,
         {
@@ -232,7 +250,7 @@ export async function executePipelineJob(
           requestedAt: new Date().toISOString(),
         },
         {
-          ...metadata,
+          ...freshMetadata,
           stepResults,
           currentStepIndex: index > 0 ? index - 1 : undefined,
           pipelineContext: ctx,
@@ -270,12 +288,15 @@ export async function executePipelineJob(
     });
 
     if (result.status === "failed") {
-      await updateJob(pipelineJobId, {
-        metadata: { ...metadata, stepResults, failedAt: step.role },
-        status: "failed",
-        error: result.error ?? `Step ${step.role} falhou`,
-        completed_at: new Date().toISOString(),
-      });
+      await updateJobWithFreshMetadata(
+        pipelineJobId,
+        { stepResults, failedAt: step.role },
+        {
+          status: "failed",
+          error: result.error ?? `Step ${step.role} falhou`,
+          completed_at: new Date().toISOString(),
+        },
+      );
 
       return {
         pipelineJobId,
@@ -293,17 +314,13 @@ export async function executePipelineJob(
     );
     ctx = compressPipelineContext(ctx);
 
-    const clearedMetadata = metadata.resumeAfterApproval
-      ? { ...metadata, resumeAfterApproval: false, approvedStepIndex: undefined }
-      : metadata;
-
-    await updateJob(pipelineJobId, {
-      metadata: {
-        ...clearedMetadata,
-        stepResults,
-        currentStepIndex: index,
-        pipelineContext: ctx,
-      },
+    await updateJobWithFreshMetadata(pipelineJobId, {
+      stepResults,
+      currentStepIndex: index,
+      pipelineContext: ctx,
+      ...(metadata.resumeAfterApproval
+        ? { resumeAfterApproval: false, approvedStepIndex: null }
+        : {}),
     });
   }
 
@@ -345,12 +362,15 @@ export async function executePipelineJob(
     stepResults.push(fixResult);
 
     if (fixResult.status === "failed") {
-      await updateJob(pipelineJobId, {
-        metadata: { ...metadata, stepResults, reviewFixLoops, failedAt: "fix" },
-        status: "failed",
-        error: fixResult.error ?? "Fix loop falhou",
-        completed_at: new Date().toISOString(),
-      });
+      await updateJobWithFreshMetadata(
+        pipelineJobId,
+        { stepResults, reviewFixLoops, failedAt: "fix" },
+        {
+          status: "failed",
+          error: fixResult.error ?? "Fix loop falhou",
+          completed_at: new Date().toISOString(),
+        },
+      );
       return {
         pipelineJobId,
         status: "failed",
@@ -376,12 +396,15 @@ export async function executePipelineJob(
     ctx = updateContextForRole("review", verifyResult.output, ctx);
 
     if (verifyResult.status === "failed") {
-      await updateJob(pipelineJobId, {
-        metadata: { ...metadata, stepResults, reviewFixLoops, failedAt: "review" },
-        status: "failed",
-        error: verifyResult.error ?? "Review de verificação falhou",
-        completed_at: new Date().toISOString(),
-      });
+      await updateJobWithFreshMetadata(
+        pipelineJobId,
+        { stepResults, reviewFixLoops, failedAt: "review" },
+        {
+          status: "failed",
+          error: verifyResult.error ?? "Review de verificação falhou",
+          completed_at: new Date().toISOString(),
+        },
+      );
       return {
         pipelineJobId,
         status: "failed",
@@ -391,23 +414,23 @@ export async function executePipelineJob(
       };
     }
 
-    await updateJob(pipelineJobId, {
-      metadata: {
-        ...metadata,
-        stepResults,
-        reviewFixLoops,
-        pipelineContext: ctx,
-      },
+    await updateJobWithFreshMetadata(pipelineJobId, {
+      stepResults,
+      reviewFixLoops,
+      pipelineContext: ctx,
     });
   }
 
   const finalOutput = stepResults.at(-1)?.output ?? "";
-  await updateJob(pipelineJobId, {
-    status: "completed",
-    response: finalOutput,
-    metadata: { ...metadata, stepResults, reviewFixLoops },
-    completed_at: new Date().toISOString(),
-  });
+  await updateJobWithFreshMetadata(
+    pipelineJobId,
+    { stepResults, reviewFixLoops },
+    {
+      status: "completed",
+      response: finalOutput,
+      completed_at: new Date().toISOString(),
+    },
+  );
 
   await appendJobEvent(pipelineJobId, "pipeline_complete", {
     stepCount: stepResults.length,

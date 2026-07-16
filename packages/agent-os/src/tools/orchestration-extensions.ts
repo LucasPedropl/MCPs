@@ -9,60 +9,42 @@ import {
   createSession,
   getSession,
 } from "../modules/orchestration/features/sessions/session-store.js";
+import {
+  classifyIntent,
+  suggestProviderForIntent,
+  type IntentCategory,
+} from "../modules/orchestration/routing/heuristics.js";
 import { describeAgentTool } from "./tool-docs.js";
 
-type RouteRule =
-  | "database"
-  | "large_feature"
-  | "small_fix"
-  | "default";
+const ROUTE_RATIONALE: Record<IntentCategory, string> = {
+  database: "Tarefa de banco/RLS: Cursor com data module.",
+  review: "Review/auditoria: Antigravity (análise ampla).",
+  implement: "Tarefa grande ou com testes: Antigravity.",
+  small_fix: "Correção pequena: Cursor.",
+  explain: "Explicação/documentação: Cursor (rápido).",
+  general: "Default pessoal: Cursor.",
+};
 
 function routeForPedro(intent: string): {
   provider: BridgeProvider;
   rationale: string;
-  matched_rule: RouteRule;
+  matched_rule: IntentCategory;
   confidence: "high" | "medium" | "low";
 } {
-  const lower = intent.toLowerCase();
-
-  if (
-    /(migration|migração|rls|sql|supabase|schema|policy|política|banco)/.test(lower)
-  ) {
-    return {
-      provider: "cursor",
-      rationale: "Tarefa de banco/RLS: Cursor com data module.",
-      matched_rule: "database",
-      confidence: "high",
-    };
-  }
-
-  if (
-    /(feature|implement|implementar|refactor|refatora|arquitetura|architecture|large|grande|testes|tests)/.test(
-      lower,
-    )
-  ) {
-    return {
-      provider: "antigravity",
-      rationale: "Tarefa grande ou com testes: Antigravity.",
-      matched_rule: "large_feature",
-      confidence: "high",
-    };
-  }
-
-  if (/(bug|fix|corrigir|typo|small|quick|rápid)/.test(lower)) {
-    return {
-      provider: "cursor",
-      rationale: "Correção pequena: Cursor.",
-      matched_rule: "small_fix",
-      confidence: "medium",
-    };
-  }
+  const category = classifyIntent(intent);
+  const provider = suggestProviderForIntent(intent) ?? "cursor";
+  const confidence =
+    category === "database" || category === "implement"
+      ? "high"
+      : category === "general"
+        ? "low"
+        : "medium";
 
   return {
-    provider: "cursor",
-    rationale: "Default pessoal: Cursor.",
-    matched_rule: "default",
-    confidence: "low",
+    provider,
+    rationale: ROUTE_RATIONALE[category],
+    matched_rule: category,
+    confidence,
   };
 }
 

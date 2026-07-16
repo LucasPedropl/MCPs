@@ -1,13 +1,19 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { getOpenApiEngineEntryPath } from "../../../config/paths.js";
 import type { HubConnection } from "../registry/connection-store.js";
+
+type ChildTransport =
+  | StdioClientTransport
+  | SSEClientTransport
+  | StreamableHTTPClientTransport;
 
 interface ChildSession {
   alias: string;
   client: Client;
-  transport: StdioClientTransport | SSEClientTransport;
+  transport: ChildTransport;
   lastUsedAt: number;
 }
 
@@ -18,7 +24,7 @@ const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
 /** Segredos do próprio agent-os que MCPs filhos de terceiros não devem herdar. */
 const AGENT_OS_SECRET_ENV = /^(AGENT_OS_|BRIDGE_|SUPABASE_)[A-Z0-9_]*(KEY|TOKEN|SECRET)$/;
 
-function inheritedEnv(): Record<string, string> {
+export function inheritedEnv(): Record<string, string> {
   const env: Record<string, string> = {};
   for (const [key, value] of Object.entries(process.env)) {
     if (typeof value !== "string" || AGENT_OS_SECRET_ENV.test(key)) {
@@ -34,7 +40,7 @@ function inheritedEnv(): Record<string, string> {
  * não existir — o caller deve DESCARTAR a entrada em vez de passar o literal
  * `${VAR}` (que sobrescreveria a env real herdada pelo filho).
  */
-function interpolateEnvValue(value: string): string | undefined {
+export function interpolateEnvValue(value: string): string | undefined {
   let missing = false;
   const resolved = value.replace(/\$\{([A-Za-z0-9_]+)\}/g, (_match, name: string) => {
     const fromProcess = process.env[name];
@@ -79,13 +85,29 @@ function buildStdioTransport(config: Record<string, unknown>): StdioClientTransp
   });
 }
 
-function buildHttpTransport(config: Record<string, unknown>): SSEClientTransport {
-  const url = String(config["url"] ?? config["sse_url"] ?? "");
+/**
+ * Transports candidatos para conexões http, em ordem de preferência:
+ * StreamableHTTP (protocolo atual) → SSE (deprecated, retrocompat).
+ * `sse_url` explícito (sem `url`/`http_url`) força SSE legado.
+ */
+function buildHttpTransportCandidates(
+  config: Record<string, unknown>,
+): Array<() => ChildTransport> {
+  const modernUrl = String(config["url"] ?? config["http_url"] ?? "");
+  const sseUrl = String(config["sse_url"] ?? "");
+  const url = modernUrl || sseUrl;
   if (!url) {
     throw new Error("Conexão HTTP requer config.url ou config.sse_url.");
   }
 
-  return new SSEClientTransport(new URL(url));
+  if (!modernUrl && sseUrl) {
+    return [() => new SSEClientTransport(new URL(sseUrl))];
+  }
+
+  return [
+    () => new StreamableHTTPClientTransport(new URL(url)),
+    () => new SSEClientTransport(new URL(url)),
+  ];
 }
 
 function buildOpenApiTransport(connection: HubConnection): StdioClientTransport {
@@ -107,40 +129,45 @@ function buildOpenApiTransport(connection: HubConnection): StdioClientTransport 
   });
 }
 
-function buildTransport(connection: HubConnection): StdioClientTransport | SSEClientTransport {
+function buildTransportCandidates(connection: HubConnection): Array<() => ChildTransport> {
   if (connection.transport === "http") {
-    return buildHttpTransport(connection.config_json);
+    return buildHttpTransportCandidates(connection.config_json);
   }
   if (connection.transport === "openapi") {
-    return buildOpenApiTransport(connection);
+    return [() => buildOpenApiTransport(connection)];
   }
-  return buildStdioTransport(connection.config_json);
+  return [() => buildStdioTransport(connection.config_json)];
 }
 
 async function doConnectChild(connection: HubConnection, retries: number): Promise<Client> {
+  const candidates = buildTransportCandidates(connection);
   let lastError: unknown;
+
   for (let attempt = 0; attempt <= retries; attempt += 1) {
-    try {
-      const transport = buildTransport(connection);
-      const client = new Client(
-        { name: "agent-os-hub", version: "0.1.0" },
-        { capabilities: {} },
-      );
+    for (const createTransport of candidates) {
+      try {
+        const transport = createTransport();
+        const client = new Client(
+          { name: "agent-os-hub", version: "0.1.0" },
+          { capabilities: {} },
+        );
 
-      await client.connect(transport);
-      sessions.set(connection.alias, {
-        alias: connection.alias,
-        client,
-        transport,
-        lastUsedAt: Date.now(),
-      });
+        await client.connect(transport);
+        sessions.set(connection.alias, {
+          alias: connection.alias,
+          client,
+          transport,
+          lastUsedAt: Date.now(),
+        });
 
-      return client;
-    } catch (error: unknown) {
-      lastError = error;
-      if (attempt < retries) {
-        await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+        return client;
+      } catch (error: unknown) {
+        lastError = error;
       }
+    }
+
+    if (attempt < retries) {
+      await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
     }
   }
 

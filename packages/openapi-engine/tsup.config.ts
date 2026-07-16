@@ -6,6 +6,8 @@ export default defineConfig({
   target: "node22",
   outDir: "dist",
   clean: true,
-  dts: false,
+  // package.json aponta types para dist/lib.d.ts — sem isso os consumidores
+  // (agent-os) veem o pacote como any.
+  dts: { entry: { lib: "src/lib.ts" } },
   sourcemap: true,
 });

@@ -191,6 +191,7 @@ describe("scoreSkillsByIntent/minScore", () => {
       version: "1.0.0",
       scope: "global",
       content_md: "# Migrations",
+      files_json: {},
       workspace_path: null,
     },
     {
@@ -200,6 +201,7 @@ describe("scoreSkillsByIntent/minScore", () => {
       version: "1.0.0",
       scope: "global",
       content_md: "# Design",
+      files_json: {},
       workspace_path: null,
     },
   ];

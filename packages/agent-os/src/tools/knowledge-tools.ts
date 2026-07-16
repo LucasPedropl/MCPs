@@ -6,46 +6,80 @@ import {
   deletePlaybook,
   deleteSkill,
   detectKnowledgeDrift,
+  estimateFilesJsonBytes,
+  filesJsonManifest,
   getLatestPlaybook,
   getSkill,
   listPlaybooks,
   listSkills,
+  normalizeFilesJson,
   resolveSkills,
   syncSkillsToHost,
   syncSkillsFromRepo,
   updatePlaybook,
   upsertSkill,
+  type SkillFilesJson,
+  type SkillRecord,
 } from "../modules/knowledge/knowledge-store.js";
 import { describeAgentTool } from "./tool-docs.js";
+
+const skillFileEntrySchema = z.object({
+  encoding: z.enum(["utf8", "base64"]),
+  content: z.string(),
+  size: z.number(),
+});
+
+const filesJsonSchema = z.record(skillFileEntrySchema);
+
+function slimSkill(skill: SkillRecord) {
+  const files = skill.files_json ?? {};
+  return {
+    name: skill.name,
+    description: skill.description,
+    version: skill.version,
+    scope: skill.scope,
+    content_chars: skill.content_md.length,
+    files_count: Object.keys(files).length,
+    files_bytes: estimateFilesJsonBytes(files),
+    files_manifest: filesJsonManifest(files),
+  };
+}
+
+function skillForResponse(skill: SkillRecord, includeFilesContent: boolean) {
+  if (includeFilesContent) {
+    return skill;
+  }
+  return {
+    ...skill,
+    files_json: undefined,
+    files_manifest: filesJsonManifest(skill.files_json ?? {}),
+  };
+}
 
 type SkillAdminArgs = {
   action: "list" | "upsert" | "delete" | "bind_to_project";
   name?: string;
   description?: string;
   content_md?: string;
+  files_json?: SkillFilesJson;
   version?: string;
   scope?: string;
   skill_id?: string;
   priority?: number;
   workspace_path?: string;
   include_content?: boolean;
+  include_files?: boolean;
 };
 
 async function handleSkillAdmin(args: SkillAdminArgs) {
   if (args.action === "list") {
     const skills = await listSkills(args.workspace_path);
     if (args.include_content) {
-      return jsonText(skills);
+      return jsonText(
+        skills.map((skill) => skillForResponse(skill, args.include_files === true)),
+      );
     }
-    return jsonText(
-      skills.map((skill) => ({
-        name: skill.name,
-        description: skill.description,
-        version: skill.version,
-        scope: skill.scope,
-        content_chars: skill.content_md.length,
-      })),
-    );
+    return jsonText(skills.map(slimSkill));
   }
 
   if (args.action === "upsert") {
@@ -57,6 +91,7 @@ async function handleSkillAdmin(args: SkillAdminArgs) {
         name: args.name,
         description: args.description,
         contentMd: args.content_md,
+        filesJson: args.files_json ? normalizeFilesJson(args.files_json) : {},
         version: args.version,
         scope: args.scope,
         workspacePath: args.workspace_path,
@@ -143,6 +178,10 @@ export function registerKnowledgeTools(server: McpServer): void {
           .boolean()
           .optional()
           .describe("true devolve content_md completo (shape antigo + score)"),
+        include_files: z
+          .boolean()
+          .optional()
+          .describe("com include_content: true inclui files_json completo"),
         min_score: z
           .number()
           .optional()
@@ -158,7 +197,12 @@ export function registerKnowledgeTools(server: McpServer): void {
       });
 
       if (args.include_content) {
-        return jsonText(resolved);
+        return jsonText(
+          resolved.map((skill) => ({
+            ...skillForResponse(skill, args.include_files === true),
+            score: skill.score,
+          })),
+        );
       }
 
       return jsonText({
@@ -168,8 +212,9 @@ export function registerKnowledgeTools(server: McpServer): void {
           version: skill.version,
           scope: skill.scope,
           score: skill.score,
+          files_count: Object.keys(skill.files_json ?? {}).length,
         })),
-        hint: "Conteúdo completo: get_skill {name} ou include_content=true.",
+        hint: "Conteúdo completo: get_skill {name} ou include_content=true. Sidecars: include_files=true.",
       });
     },
   );
@@ -178,9 +223,22 @@ export function registerKnowledgeTools(server: McpServer): void {
     "get_skill",
     {
       description: describeAgentTool("get_skill"),
-      inputSchema: { name: z.string(), version: z.string().optional() },
+      inputSchema: {
+        name: z.string(),
+        version: z.string().optional(),
+        include_files: z
+          .boolean()
+          .optional()
+          .describe("true inclui files_json completo; default só files_manifest"),
+      },
     },
-    async (args) => guardedJsonText(await getSkill(args.name, args.version)),
+    async (args) => {
+      const skill = await getSkill(args.name, args.version);
+      if (!skill) {
+        return guardedJsonText(null);
+      }
+      return guardedJsonText(skillForResponse(skill, args.include_files === true));
+    },
   );
 
   server.registerTool(
@@ -213,6 +271,7 @@ export function registerKnowledgeTools(server: McpServer): void {
         name: z.string().optional(),
         description: z.string().optional(),
         content_md: z.string().optional(),
+        files_json: filesJsonSchema.optional(),
         version: z.string().optional(),
         scope: z.string().optional(),
         skill_id: z.string().optional(),
@@ -221,7 +280,11 @@ export function registerKnowledgeTools(server: McpServer): void {
         include_content: z
           .boolean()
           .optional()
-          .describe("list: true devolve content_md completo (default só metadados + content_chars)"),
+          .describe("list: true devolve content_md (default só metadados + files_manifest)"),
+        include_files: z
+          .boolean()
+          .optional()
+          .describe("com include_content: true inclui files_json completo"),
       },
     },
     async (args) => handleSkillAdmin(args as SkillAdminArgs),

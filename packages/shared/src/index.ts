@@ -19,6 +19,7 @@ export {
   jsonText,
   markdownText,
   truncateWithHint,
+  unwrapMcpResult,
   type GuardOptions,
   type TruncateOptions,
 } from "./mcp-response.js";

@@ -1,5 +1,5 @@
 import { maskSecret } from "../../lib/mask-secret.js";
-import type { KeepAliveEntry, Project } from "../accounts/schemas/account.schema.js";
+import type { KeepAliveEntry, Project } from "./features/accounts/schemas/account.schema.js";
 import { getKeepAliveSchedulerStatus } from "./features/projects/services/keepalive-service.js";
 
 export function sanitizeProject(project: Project | undefined): Project | undefined {

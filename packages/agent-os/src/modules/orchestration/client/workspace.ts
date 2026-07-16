@@ -39,11 +39,30 @@ function parseWorkspaceList(raw: string): string[] {
     }
   }
 
-  const separator = trimmed.includes(path.delimiter) ? path.delimiter : ";";
-  return trimmed
-    .split(separator)
-    .map((entry) => entry.trim())
-    .filter(Boolean);
+  // Cursor às vezes injeta CSV (`,`); no Windows path.delimiter é `;`.
+  const separator = trimmed.includes(path.delimiter)
+    ? path.delimiter
+    : trimmed.includes(";")
+      ? ";"
+      : trimmed.includes(",")
+        ? ","
+        : null;
+
+  const parts = separator ? trimmed.split(separator) : [trimmed];
+  return parts.map((entry) => entry.trim()).filter(Boolean);
+}
+
+/** `${workspaceFolder}` sem expandir, ou path inválido — não usar como cwd fixo. */
+function isUsableDefaultCwd(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.includes("${")) {
+    return false;
+  }
+  if (!looksLikeFilesystemPath(trimmed)) {
+    return false;
+  }
+  const resolved = path.resolve(trimmed);
+  return !isUserHomeDirectory(resolved) && fs.existsSync(resolved);
 }
 
 /**
@@ -110,20 +129,21 @@ function pickBestWorkspaceFolder(folders: string[]): string | null {
 
 /**
  * Workspace alvo para delegação e auto-launch.
+ *
+ * Prioridade: pastas abertas no host (Cursor) → DEFAULT_CWD (fallback) →
+ * Antigravity → process.cwd. Assim `${workspaceFolder}` no mcp.json não
+ * “prende” o agent-os no projeto da janela que bootou o MCP.
  */
 export function getTargetWorkspacePath(): string {
-  const bridgeCwd =
-    process.env["AGENT_OS_DEFAULT_CWD"] ?? process.env["BRIDGE_DEFAULT_CWD"];
-  if (bridgeCwd?.trim()) {
-    const resolved = path.resolve(bridgeCwd.trim());
-    if (!isUserHomeDirectory(resolved)) {
-      return resolved;
-    }
-  }
-
   const cursorFolder = pickBestWorkspaceFolder(getCursorWorkspaceFolders());
   if (cursorFolder) {
     return cursorFolder;
+  }
+
+  const bridgeCwd =
+    process.env["AGENT_OS_DEFAULT_CWD"] ?? process.env["BRIDGE_DEFAULT_CWD"];
+  if (bridgeCwd && isUsableDefaultCwd(bridgeCwd)) {
+    return path.resolve(bridgeCwd.trim());
   }
 
   const workspaceEnv = process.env["ANTIGRAVITY_WORKSPACE"];
@@ -149,8 +169,8 @@ export function getTargetWorkspacePath(): string {
   }
 
   throw new Error(
-    "Workspace alvo não identificado. Defina AGENT_OS_DEFAULT_CWD no mcp.json " +
-      "ou abra o projeto via .cursor/mcp.json com ${workspaceFolder}.",
+    "Workspace alvo não identificado. Abra um projeto na IDE ou defina " +
+      "AGENT_OS_DEFAULT_CWD no mcp.json (ex.: ${workspaceFolder}).",
   );
 }
 
@@ -160,6 +180,20 @@ export function getWorkspaceMatchHint(): string {
     return workspaceEnv.trim();
   }
   return getTargetWorkspacePath();
+}
+
+/**
+ * Codifica um path no formato (lossy) do workspace_id do Antigravity:
+ * `c:/foo/bar` → `c_3a_foo_bar`. Comparar no espaço encoded evita o problema
+ * do decode `_`→`/`, que corrompe underscores reais em nomes de pasta.
+ */
+function encodeWorkspacePathLikeId(targetPath: string): string {
+  const normalized = normalizePath(targetPath);
+  const driveMatch = normalized.match(/^([a-z]):\/(.*)$/);
+  if (!driveMatch) {
+    return normalized.replace(/\//g, "_");
+  }
+  return `${driveMatch[1]}_3a_${(driveMatch[2] ?? "").replace(/\//g, "_")}`;
 }
 
 export function instanceMatchesWorkspace(
@@ -172,13 +206,24 @@ export function instanceMatchesWorkspace(
 
   if (workspacePath) {
     const normalizedInstance = normalizePath(workspacePath);
-    return (
+    if (
       normalizedInstance === normalizedTarget ||
       normalizedInstance.endsWith(`/${targetBasename}`)
-    );
+    ) {
+      return true;
+    }
+    // Não retornar false ainda: o workspacePath vem de um decode lossy
+    // (underscores reais viram "/") — o fallback pelo id encoded abaixo
+    // ainda pode casar corretamente.
   }
 
-  return workspaceId.toLowerCase().includes(targetBasename);
+  const id = workspaceId.toLowerCase();
+  const encodedTarget = encodeWorkspacePathLikeId(targetPath);
+  if (encodedTarget && id.endsWith(encodedTarget)) {
+    return true;
+  }
+
+  return id.includes(targetBasename);
 }
 
 export function getWorkspaceResolutionDebug(): Record<string, unknown> {

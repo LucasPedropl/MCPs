@@ -52,8 +52,8 @@ RETURNS: { preferences, decisions, pitfalls, skills, playbooks, suggested_tools,
 	resolve_skills: `Resolve skills relevantes para uma intenção (ranking por score; score 0 fica de fora). Para conteúdo completo de skill conhecida use get_skill.
 RETURNS: { skills: [{name, description, version, scope, score}], hint } — sem content_md por default (include_content=true para completo).`,
 
-	get_skill: `Retorna skill completa (content_md) por nome exato. Para descobrir skill por intenção use resolve_skills.
-RETURNS: SkillRecord | null`,
+	get_skill: `Retorna skill completa (content_md + manifesto de sidecars) por nome exato. Para descobrir skill por intenção use resolve_skills.
+RETURNS: SkillRecord | null (files_json completo só com include_files=true)`,
 
 	list_projects: `Lista projetos Supabase em cache do hub — descobrir projectRef antes de switch_project. Para o portfólio agent_projects use list_agent_projects.
 RETURNS: { count, projects[] }`,
@@ -130,9 +130,10 @@ PARAMS: action(list|update|delete|changes_since), kind(preference|decision|pitfa
 	import_from_rules: `
 Importa .cursor/rules e skills do workspace como preferências project-scoped.
 WHEN TO USE: Onboarding de projeto existente com regras Cursor já escritas.
-WHEN NOT: Para regra única (use set_project_rule).
-RETURNS: { seeded?, imported: { count, keys[] } }
-PARAMS: workspace_path, seed_pedro_defaults? (semeia 8 preferências globais padrão).
+WHEN NOT: Para regra única (use set_project_rule); para regra que vale em todos os
+projetos do Pedro, registre como skill em skills/ e rode sync_skills em vez de preferência global.
+RETURNS: { imported: { count, keys[] }, truncated_files?, hint? }
+PARAMS: workspace_path.
 `.trim(),
 
 	// ── bootstrap / context ─────────────────────────────────────────────────
@@ -165,22 +166,25 @@ PARAMS: intent, workspace_path?, limit?, include_content?, min_score? (default 1
 Retorna skill completa por nome (e versão opcional).
 WHEN TO USE: Quando souber o nome exato da skill.
 WHEN NOT: Para buscar por intenção (use resolve_skills).
-RETURNS: SkillRecord | null
+RETURNS: SkillRecord | null. Default: content_md + files_manifest (path/encoding/size). include_files=true traz files_json completo (scripts/references/assets).
+NOTES: Sidecars em disco só aparecem após sync_skills direction=to_host (.cursor/skills e .claude/skills). get_skill sozinho não materializa arquivos.
 `.trim(),
 
 	sync_skills: `
-Sincroniza skills entre repositório, Supabase e workspaces.
-WHEN TO USE: direction=from_repo para subir skills/ do monorepo ao registry; direction=to_host para materializar skills em .cursor/skills/ do workspace.
+Sincroniza skills entre repositório, Supabase e workspaces — incluindo sidecars (scripts/, references/, assets/) via files_json.
+WHEN TO USE: direction=from_repo para subir skills/ do monorepo ao registry; direction=to_host para materializar SKILL.md + sidecars em .cursor/skills/ e .claude/skills/.
 WHEN NOT: Para editar uma skill (use skill_admin action=upsert).
-RETURNS: Relatório de sincronização (contagens).
+RETURNS: from_repo → { synced, names, warnings[], skillsRoot }; to_host → { written[], hosts[] }.
 PARAMS: direction(from_repo|to_host), skills_root? (from_repo), workspace_path (to_host).
+NOTES: Arquivos >100KB ou total >500KB geram warning e são skipados. Caps: 40 arquivos/skill.
 `.trim(),
 
 	skill_admin: `
 Administração do registry de skills: listar, criar/atualizar, deletar, vincular a projeto.
 WHEN TO USE: action=list|upsert|delete|bind_to_project.
 WHEN NOT: Para resolver skills por intenção (use resolve_skills).
-RETURNS: Lista (default só name/description/content_chars; include_content=true traz content_md), registro salvo ou { ok: true }.
+RETURNS: Lista slim (name/description/content_chars/files_count/files_manifest); include_content=true traz content_md; include_files=true inclui files_json.
+PARAMS: upsert aceita files_json opcional (mapa path → {encoding, content, size}).
 `.trim(),
 
 	playbook: `
@@ -231,9 +235,10 @@ RETURNS: JSON schema da tool.
 	call_mcp_tool: `
 Executa tool em MCP filho via hub lazy (conexão sob demanda, idle timeout 5min).
 WHEN TO USE: Qualquer operação em GitHub/Vercel/OpenAPI registrados no hub.
+Ex: { alias: 'github', tool_name: 'search_repositories', arguments: { query: '...' } }.
 WHEN NOT: Para Supabase do projeto ativo (use call_supabase_tool).
-RETURNS: Resultado bruto da tool filha.
-PARAMS: alias, tool_name, arguments.
+RETURNS: Texto/JSON da tool filha; acima do cap vem com marcador TRUNCATED (head+tail).
+PARAMS: alias, tool_name, arguments (objeto), max_chars? (cap do resultado; default env AGENT_OS_MCP_RESULT_MAX_CHARS=25000; <=0 desliga).
 `.trim(),
 
 	mcp_admin: `
@@ -306,15 +311,16 @@ RETURNS: { active, account, project, activeContext }
 
 	call_supabase_tool: `
 Chama qualquer tool do MCP Supabase oficial no projeto ativo (list_tables, execute_sql, apply_migration, get_logs, etc).
-WHEN TO USE: TODA operação de banco no projeto ativo. Ex: { toolName: 'execute_sql', arguments: { query: 'select 1' } }.
+WHEN TO USE: TODA operação de banco no projeto ativo. Ex: { tool_name: 'execute_sql', arguments: { query: 'select 1' } }.
 WHEN NOT: Sem projeto ativo (rode switch_project primeiro). Para descobrir tools disponíveis (use list_supabase_tools).
-RETURNS: Resultado bruto do MCP oficial Supabase.
+RETURNS: Texto/JSON do MCP Supabase; acima do cap vem com marcador TRUNCATED (head+tail).
+PARAMS: tool_name (alias legado: toolName), arguments (objeto), max_chars? (cap do resultado; default env AGENT_OS_MCP_RESULT_MAX_CHARS=25000; <=0 desliga).
 NOTES: Substitui as antigas tools diretas list_tables/execute_sql/etc deste servidor.
 `.trim(),
 
 	list_supabase_tools: `
 Lista as tools disponíveis no MCP Supabase oficial para o projeto ativo.
-WHEN TO USE: Descobrir toolName válidos para call_supabase_tool.
+WHEN TO USE: Descobrir tool_name válidos para call_supabase_tool.
 RETURNS: { tools[] }
 `.trim(),
 

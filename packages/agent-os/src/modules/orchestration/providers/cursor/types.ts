@@ -44,6 +44,11 @@ export interface DelegateToCursorInput {
    * Abort signal — kills the cursor-agent process tree when aborted.
    */
   signal?: AbortSignal;
+
+  /**
+   * Resume an existing cursor-agent chat session (`--resume <id>`).
+   */
+  resumeSessionId?: string;
 }
 
 /**
