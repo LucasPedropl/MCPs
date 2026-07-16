@@ -8,30 +8,36 @@ export const SESSION_COOKIE_NAME = "agent_os_session";
 /** 12 hours */
 export const SESSION_MAX_AGE_SHORT_SEC = 12 * 60 * 60;
 
-/** 30 days */
-export const SESSION_MAX_AGE_LONG_SEC = 30 * 24 * 60 * 60;
+/** ~400 days — teto prático dos browsers (Chrome); “indefinido” até logout. */
+export const SESSION_MAX_AGE_LONG_SEC = 400 * 24 * 60 * 60;
 
 export interface SessionPayload {
   email: string;
   exp: number;
 }
 
+// Static reads so Edge middleware / Turbopack include these env keys.
+const ENV_SESSION_SECRET = process.env.DASHBOARD_SESSION_SECRET;
+const ENV_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const ENV_SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
+const ENV_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
 /** Secret used only to sign the session cookie (not the login password). */
 export function getSessionSecret(): string | null {
-  const explicit = process.env.DASHBOARD_SESSION_SECRET?.trim() ?? "";
+  const explicit = ENV_SESSION_SECRET?.trim() ?? "";
   if (explicit.length >= 16) return explicit;
 
-  // Fallback: service role already required for the dashboard APIs.
-  const fallback = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ?? "";
+  const fallback = ENV_SERVICE_ROLE?.trim() ?? "";
   if (fallback.length >= 16) return fallback;
 
   return null;
 }
 
 export function isAuthConfigured(): boolean {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
-  const hasDb = Boolean(url && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY));
-  return hasDb && getSessionSecret() !== null;
+  const hasPublic =
+    Boolean(ENV_SUPABASE_URL?.trim()) && Boolean(ENV_ANON_KEY?.trim());
+  return hasPublic && getSessionSecret() !== null;
 }
 
 function toBase64Url(bytes: Uint8Array): string {

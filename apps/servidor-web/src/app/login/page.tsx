@@ -26,7 +26,8 @@ export default function LoginPage() {
 
         <p className="text-[11px] text-center text-zinc-500 leading-relaxed">
           Credenciais no <strong>Supabase Auth</strong>. Marque Lembrar-me para
-          sessão de 30 dias (cookie httpOnly — senha não vai para localStorage).
+          ficar logado até clicar em Sair (cookie httpOnly — senha não vai para
+          localStorage).
         </p>
       </div>
     </div>

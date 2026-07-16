@@ -38,8 +38,11 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!configured || !secret) {
+    // Sem config pública do Supabase: ainda permite /login (já liberado acima).
+    // Para o resto, manda pro login SEM error=not_configured (evita banner sticky falso
+    // quando o problema é só cookie/sessão ou restart do dev server).
     const message =
-      "Dashboard auth não configurada. Configure Supabase (URL + keys). Credenciais de login ficam no Supabase Auth.";
+      "Dashboard auth não configurada. Configure Supabase (URL + anon + service role) no .env.local e reinicie o servidor.";
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
         { error: message, configured: false },
@@ -48,7 +51,7 @@ export async function middleware(request: NextRequest) {
     }
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("error", "not_configured");
+    url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
 

@@ -32,7 +32,7 @@ Abra [http://localhost:3000/agent-os](http://localhost:3000/agent-os).
 
 - **Credenciais** ficam no **Supabase Auth** (não no `.env`)
 - Login: [`/login`](http://localhost:3000/login) → `signInWithPassword` → cookie httpOnly `agent_os_session`
-- **Lembrar-me**: cookie ~30 dias (12h sem marcar)
+- **Lembrar-me**: cookie até logout (teto prático ~400 dias nos browsers; 12h sem marcar)
 - Logout: botão **Sair** no topbar
 - Crie o usuário em Authentication → Users (ou via Admin API / script de seed)
 
