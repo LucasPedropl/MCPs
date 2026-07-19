@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GitBranch, Plus, Plug, RefreshCw, Server } from 'lucide-react';
 import { useHubConnections } from '@/features/agent-os/hooks/useHubConnections';
 import { AddStdioMcpModal } from '@/features/agent-os/components/AddStdioMcpModal';
@@ -8,14 +8,64 @@ import { ConnectOpenApiModal } from '@/features/agent-os/components/ConnectOpenA
 import { ToolsExplorerModal } from '@/features/agent-os/components/ToolsExplorerModal';
 import { EditConnectionModal } from '@/features/agent-os/components/EditConnectionModal';
 import { HubConnectionCard } from '@/features/agent-os/components/HubConnectionCard';
+import { supabase } from '@/lib/supabase';
+import { useToast } from '@/components/ui/Toast';
 import type { HubConnection } from '@/features/agent-os/types/hub';
 
 export default function HubPage() {
+  const { addToast } = useToast();
   const { connections, mcpServers, loading, error, setError, load } = useHubConnections();
   const [stdioOpen, setStdioOpen] = useState(false);
   const [openapiOpen, setOpenapiOpen] = useState(false);
   const [exploreConn, setExploreConn] = useState<HubConnection | null>(null);
   const [editConn, setEditConn] = useState<HubConnection | null>(null);
+
+  useEffect(() => {
+    const handleAuthCallback = async () => {
+      if (typeof window !== 'undefined' && window.location.hash.includes('access_token=')) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token) {
+            const res = await fetch('/api/agent-os/hub');
+            if (res.ok) {
+              const data = (await res.json()) as { connections?: HubConnection[] };
+              const contendeo = data.connections?.find((c) => c.alias === 'contendeo');
+              if (contendeo) {
+                const config = (contendeo.config_json || {}) as Record<string, any>;
+                const existingHeaders = typeof config.headers === 'object' && config.headers !== null ? config.headers : {};
+                config.headers = {
+                  ...existingHeaders,
+                  Authorization: `Bearer ${session.access_token}`,
+                };
+
+                const updateRes = await fetch('/api/agent-os/hub', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    alias: 'contendeo',
+                    transport: 'http',
+                    config_json: config,
+                  }),
+                });
+
+                if (updateRes.ok) {
+                  addToast('Autenticado no Contendeo via Google com sucesso!', 'success');
+                  window.history.replaceState(null, '', window.location.pathname);
+                  load();
+                } else {
+                  setError('Falha ao salvar token do Contendeo.');
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Erro no callback do Google Login:', err);
+        }
+      }
+    };
+
+    void handleAuthCallback();
+  }, [load, addToast, setError]);
 
   const handleRefreshHealth = async (alias: string) => {
     const res = await fetch('/api/agent-os/hub', {
