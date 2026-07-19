@@ -34,6 +34,7 @@ export function EditConnectionModal({
   const [sseUrl, setSseUrl] = useState('');
   const [serverId, setServerId] = useState('');
   const [envRows, setEnvRows] = useState<EnvRow[]>([]);
+  const [headerRows, setHeaderRows] = useState<EnvRow[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -66,6 +67,22 @@ export function EditConnectionModal({
         };
       });
       setEnvRows(rows);
+
+      const headersObj = (config.headers as Record<string, string>) || {};
+      const hRows = Object.entries(headersObj).map(([key, value]) => {
+        const isSensitive = 
+          key.toLowerCase().includes('token') || 
+          key.toLowerCase().includes('key') || 
+          key.toLowerCase().includes('secret') || 
+          key.toLowerCase().includes('auth') || 
+          key.toLowerCase().includes('pass');
+        return {
+          key,
+          value,
+          visible: !isSensitive,
+        };
+      });
+      setHeaderRows(hRows);
     }
   }, [connection]);
 
@@ -88,6 +105,26 @@ export function EditConnectionModal({
   const handleToggleVisibility = (index: number) => {
     setEnvRows(
       envRows.map((row, i) => (i === index ? { ...row, visible: !row.visible } : row))
+    );
+  };
+
+  const handleAddHeaderRow = () => {
+    setHeaderRows([...headerRows, { key: '', value: '', visible: true }]);
+  };
+
+  const handleRemoveHeaderRow = (index: number) => {
+    setHeaderRows(headerRows.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateHeaderRow = (index: number, field: 'key' | 'value', val: string) => {
+    setHeaderRows(
+      headerRows.map((row, i) => (i === index ? { ...row, [field]: val } : row))
+    );
+  };
+
+  const handleToggleHeaderVisibility = (index: number) => {
+    setHeaderRows(
+      headerRows.map((row, i) => (i === index ? { ...row, visible: !row.visible } : row))
     );
   };
 
@@ -115,6 +152,14 @@ export function EditConnectionModal({
       } else if (connection.transport === 'http') {
         if (url.trim()) config_json.url = url.trim();
         if (sseUrl.trim()) config_json.sse_url = sseUrl.trim();
+
+        const headers: Record<string, string> = {};
+        for (const row of headerRows) {
+          if (row.key.trim()) {
+            headers[row.key.trim()] = row.value;
+          }
+        }
+        config_json.headers = headers;
       } else if (connection.transport === 'openapi') {
         if (serverId.trim()) config_json.server_id = serverId.trim();
       }
@@ -249,28 +294,96 @@ export function EditConnectionModal({
         )}
 
         {connection.transport === 'http' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <label className="block space-y-1">
-              <span className="text-xs text-zinc-500 font-medium">URL (Modern HTTP / Streamable)</span>
-              <input
-                className={inputClass}
-                type="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://sua-api.com/mcp"
-              />
-            </label>
-            <label className="block space-y-1">
-              <span className="text-xs text-zinc-500 font-medium">SSE URL (Legacy Fallback)</span>
-              <input
-                className={inputClass}
-                type="url"
-                value={sseUrl}
-                onChange={(e) => setSseUrl(e.target.value)}
-                placeholder="https://sua-api.com/mcp/sse"
-              />
-            </label>
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label className="block space-y-1">
+                <span className="text-xs text-zinc-500 font-medium">URL (Modern HTTP / Streamable)</span>
+                <input
+                  className={inputClass}
+                  type="url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://sua-api.com/mcp"
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-xs text-zinc-500 font-medium">SSE URL (Legacy Fallback)</span>
+                <input
+                  className={inputClass}
+                  type="url"
+                  value={sseUrl}
+                  onChange={(e) => setSseUrl(e.target.value)}
+                  placeholder="https://sua-api.com/mcp/sse"
+                />
+              </label>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border-b border-subtle pb-2">
+                <h4 className="text-sm font-semibold flex items-center gap-1.5">
+                  <Key className="w-4 h-4 text-accent" />
+                  Cabeçalhos HTTP / Autenticação (Headers)
+                </h4>
+                <button
+                  type="button"
+                  onClick={handleAddHeaderRow}
+                  className="flex items-center gap-1 text-xs font-medium text-accent hover:opacity-85 transition-opacity"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Adicionar Cabeçalho
+                </button>
+              </div>
+
+              {headerRows.length === 0 ? (
+                <p className="text-xs text-ink-muted text-center py-4 bg-panel border border-dashed border-zinc-200 dark:border-zinc-800 rounded-lg">
+                  Nenhum cabeçalho HTTP definido (conexão aberta).
+                </p>
+              ) : (
+                <div className="space-y-2.5 max-h-[200px] overflow-y-auto pr-1">
+                  {headerRows.map((row, index) => (
+                    <div key={index} className="flex gap-2 items-start">
+                      <div className="flex-1">
+                        <Input
+                          placeholder="Authorization, x-api-key, etc."
+                          value={row.key}
+                          onChange={(e) => handleUpdateHeaderRow(index, 'key', e.target.value)}
+                          className="font-mono text-xs"
+                        />
+                      </div>
+                      <div className="flex-[2] relative flex items-center">
+                        <Input
+                          type={row.visible ? 'text' : 'password'}
+                          placeholder="Valor / Token"
+                          value={row.value}
+                          onChange={(e) => handleUpdateHeaderRow(index, 'value', e.target.value)}
+                          className="font-mono text-xs pr-9"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleToggleHeaderVisibility(index)}
+                          className="absolute right-3 text-ink-muted hover:text-ink transition-colors"
+                          title={row.visible ? 'Ocultar valor' : 'Mostrar valor'}
+                        >
+                          {row.visible ? (
+                            <EyeOff className="w-4 h-4" />
+                          ) : (
+                            <Eye className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveHeaderRow(index)}
+                        className="p-2.5 rounded-lg border border-subtle hover:bg-red-500/10 hover:text-red-500 transition-colors text-ink-muted shrink-0"
+                        title="Remover cabeçalho"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
         )}
 
         {connection.transport === 'openapi' && (

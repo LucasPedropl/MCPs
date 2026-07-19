@@ -101,13 +101,37 @@ function buildHttpTransportCandidates(
     throw new Error("Conexão HTTP requer config.url ou config.sse_url.");
   }
 
+  const rawHeaders = config["headers"];
+  const sseOptions: Record<string, any> = {};
+  const httpOptions: Record<string, any> = {};
+
+  if (rawHeaders && typeof rawHeaders === "object") {
+    const headers: Record<string, string> = {};
+    for (const [key, value] of Object.entries(rawHeaders as Record<string, unknown>)) {
+      if (typeof value !== "string") {
+        continue;
+      }
+      const resolved = interpolateEnvValue(value);
+      if (resolved === undefined) {
+        console.error(
+          `[mcp-hub] HTTP header '${key}' ignorado: variável referenciada em '${value}' não está definida no ambiente.`,
+        );
+        continue;
+      }
+      headers[key] = resolved;
+    }
+    sseOptions.eventSourceInit = { headers };
+    sseOptions.requestInit = { headers };
+    httpOptions.requestInit = { headers };
+  }
+
   if (!modernUrl && sseUrl) {
-    return [() => new SSEClientTransport(new URL(sseUrl))];
+    return [() => new SSEClientTransport(new URL(sseUrl), sseOptions)];
   }
 
   return [
-    () => new StreamableHTTPClientTransport(new URL(url)),
-    () => new SSEClientTransport(new URL(url)),
+    () => new StreamableHTTPClientTransport(new URL(url), httpOptions),
+    () => new SSEClientTransport(new URL(url), sseOptions),
   ];
 }
 
