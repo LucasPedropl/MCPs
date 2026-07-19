@@ -6,6 +6,7 @@ import { useHubConnections } from '@/features/agent-os/hooks/useHubConnections';
 import { AddStdioMcpModal } from '@/features/agent-os/components/AddStdioMcpModal';
 import { ConnectOpenApiModal } from '@/features/agent-os/components/ConnectOpenApiModal';
 import { ToolsExplorerModal } from '@/features/agent-os/components/ToolsExplorerModal';
+import { EditConnectionModal } from '@/features/agent-os/components/EditConnectionModal';
 import { HubConnectionCard } from '@/features/agent-os/components/HubConnectionCard';
 import type { HubConnection } from '@/features/agent-os/types/hub';
 
@@ -14,6 +15,7 @@ export default function HubPage() {
   const [stdioOpen, setStdioOpen] = useState(false);
   const [openapiOpen, setOpenapiOpen] = useState(false);
   const [exploreConn, setExploreConn] = useState<HubConnection | null>(null);
+  const [editConn, setEditConn] = useState<HubConnection | null>(null);
 
   const handleRefreshHealth = async (alias: string) => {
     const res = await fetch('/api/agent-os/hub', {
@@ -118,6 +120,7 @@ export default function HubPage() {
               onRefreshHealth={handleRefreshHealth}
               onDisconnect={handleDisconnect}
               onExploreTools={setExploreConn}
+              onEditConnection={setEditConn}
             />
           ))}
         </div>
@@ -137,6 +140,13 @@ export default function HubPage() {
         onError={setError}
       />
       <ToolsExplorerModal connection={exploreConn} onClose={() => setExploreConn(null)} />
+      <EditConnectionModal
+        isOpen={editConn !== null}
+        onClose={() => setEditConn(null)}
+        connection={editConn}
+        onSuccess={load}
+        onError={setError}
+      />
     </div>
   );
 }

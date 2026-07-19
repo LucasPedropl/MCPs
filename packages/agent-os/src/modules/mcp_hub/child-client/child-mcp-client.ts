@@ -15,6 +15,7 @@ interface ChildSession {
   client: Client;
   transport: ChildTransport;
   lastUsedAt: number;
+  configJson: Record<string, unknown>;
 }
 
 const sessions = new Map<string, ChildSession>();
@@ -158,6 +159,7 @@ async function doConnectChild(connection: HubConnection, retries: number): Promi
           client,
           transport,
           lastUsedAt: Date.now(),
+          configJson: connection.config_json,
         });
 
         return client;
@@ -177,8 +179,14 @@ async function doConnectChild(connection: HubConnection, retries: number): Promi
 async function connectChild(connection: HubConnection, retries = 2): Promise<Client> {
   const existing = sessions.get(connection.alias);
   if (existing) {
-    existing.lastUsedAt = Date.now();
-    return existing.client;
+    if (JSON.stringify(existing.configJson) !== JSON.stringify(connection.config_json)) {
+      console.log(`[mcp-hub] Configuração alterada para '${connection.alias}'. Reconectando...`);
+      void existing.transport.close().catch(() => {});
+      sessions.delete(connection.alias);
+    } else {
+      existing.lastUsedAt = Date.now();
+      return existing.client;
+    }
   }
 
   // Dedupe: chamadas concorrentes ao mesmo alias compartilham a mesma conexão

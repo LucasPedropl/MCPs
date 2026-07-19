@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { RefreshCw, Unplug, Wrench } from 'lucide-react';
+import { Key, RefreshCw, Unplug, Wrench } from 'lucide-react';
 import type { HubConnection } from '../types/hub';
 
 interface HubConnectionCardProps {
@@ -9,6 +9,7 @@ interface HubConnectionCardProps {
   onRefreshHealth: (alias: string) => void;
   onDisconnect: (alias: string) => void;
   onExploreTools: (connection: HubConnection) => void;
+  onEditConnection: (connection: HubConnection) => void;
 }
 
 export function HubConnectionCard({
@@ -16,6 +17,7 @@ export function HubConnectionCard({
   onRefreshHealth,
   onDisconnect,
   onExploreTools,
+  onEditConnection,
 }: HubConnectionCardProps) {
   const toolCount = connection.tool_cache_json?.length ?? 0;
 
@@ -28,6 +30,14 @@ export function HubConnectionCard({
           <span className={connection.status === 'connected' ? 'text-emerald-500' : 'text-ink-muted'}>
             {connection.status}
           </span>
+          <button
+            type="button"
+            onClick={() => onEditConnection(connection)}
+            className="p-1 rounded hover:bg-elevated text-ink-muted"
+            title="Autenticar / Editar"
+          >
+            <Key className="w-3.5 h-3.5" />
+          </button>
           <button
             type="button"
             onClick={() => onExploreTools(connection)}
